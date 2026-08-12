@@ -91,8 +91,8 @@ export const marks: Mark[] = students.flatMap((student) => {
   return studentSubjects.map((subject, index) => ({
     studentId: student.id,
     subjectCode: subject.code,
-    internal: seed[(index * 2) % seed.length],
-    external: seed[(index * 2 + 1) % seed.length],
+    internal: seed[(index * 2) % seed.length] ?? 25,
+    external: seed[(index * 2 + 1) % seed.length] ?? 35,
   }));
 });
 
