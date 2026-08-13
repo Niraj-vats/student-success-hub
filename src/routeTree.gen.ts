@@ -10,6 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AttendanceRouteImport } from './routes/attendance'
+import { Route as MarksRouteImport } from './routes/marks'
+import { Route as PerformanceRouteImport } from './routes/performance'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as ResultsRouteImport } from './routes/results'
 import { Route as SubjectsRouteImport } from './routes/subjects'
 import { Route as StudentsIndexRouteImport } from './routes/students.index'
 import { Route as StudentsStudentIdRouteImport } from './routes/students.$studentId'
@@ -17,6 +22,31 @@ import { Route as StudentsStudentIdRouteImport } from './routes/students.$studen
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AttendanceRoute = AttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarksRoute = MarksRouteImport.update({
+  id: '/marks',
+  path: '/marks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerformanceRoute = PerformanceRouteImport.update({
+  id: '/performance',
+  path: '/performance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultsRoute = ResultsRouteImport.update({
+  id: '/results',
+  path: '/results',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SubjectsRoute = SubjectsRouteImport.update({
@@ -37,12 +67,22 @@ const StudentsStudentIdRoute = StudentsStudentIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/attendance': typeof AttendanceRoute
+  '/marks': typeof MarksRoute
+  '/performance': typeof PerformanceRoute
+  '/reports': typeof ReportsRoute
+  '/results': typeof ResultsRoute
   '/subjects': typeof SubjectsRoute
   '/students/$studentId': typeof StudentsStudentIdRoute
   '/students/': typeof StudentsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/attendance': typeof AttendanceRoute
+  '/marks': typeof MarksRoute
+  '/performance': typeof PerformanceRoute
+  '/reports': typeof ReportsRoute
+  '/results': typeof ResultsRoute
   '/subjects': typeof SubjectsRoute
   '/students/$studentId': typeof StudentsStudentIdRoute
   '/students': typeof StudentsIndexRoute
@@ -50,20 +90,58 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/attendance': typeof AttendanceRoute
+  '/marks': typeof MarksRoute
+  '/performance': typeof PerformanceRoute
+  '/reports': typeof ReportsRoute
+  '/results': typeof ResultsRoute
   '/subjects': typeof SubjectsRoute
   '/students/$studentId': typeof StudentsStudentIdRoute
   '/students/': typeof StudentsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/subjects' | '/students/$studentId' | '/students/'
+  fullPaths:
+    | '/'
+    | '/attendance'
+    | '/marks'
+    | '/performance'
+    | '/reports'
+    | '/results'
+    | '/subjects'
+    | '/students/$studentId'
+    | '/students/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/subjects' | '/students/$studentId' | '/students'
-  id: '__root__' | '/' | '/subjects' | '/students/$studentId' | '/students/'
+  to:
+    | '/'
+    | '/attendance'
+    | '/marks'
+    | '/performance'
+    | '/reports'
+    | '/results'
+    | '/subjects'
+    | '/students/$studentId'
+    | '/students'
+  id:
+    | '__root__'
+    | '/'
+    | '/attendance'
+    | '/marks'
+    | '/performance'
+    | '/reports'
+    | '/results'
+    | '/subjects'
+    | '/students/$studentId'
+    | '/students/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AttendanceRoute: typeof AttendanceRoute
+  MarksRoute: typeof MarksRoute
+  PerformanceRoute: typeof PerformanceRoute
+  ReportsRoute: typeof ReportsRoute
+  ResultsRoute: typeof ResultsRoute
   SubjectsRoute: typeof SubjectsRoute
   StudentsStudentIdRoute: typeof StudentsStudentIdRoute
   StudentsIndexRoute: typeof StudentsIndexRoute
@@ -76,6 +154,41 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/attendance': {
+      id: '/attendance'
+      path: '/attendance'
+      fullPath: '/attendance'
+      preLoaderRoute: typeof AttendanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marks': {
+      id: '/marks'
+      path: '/marks'
+      fullPath: '/marks'
+      preLoaderRoute: typeof MarksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/performance': {
+      id: '/performance'
+      path: '/performance'
+      fullPath: '/performance'
+      preLoaderRoute: typeof PerformanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/results': {
+      id: '/results'
+      path: '/results'
+      fullPath: '/results'
+      preLoaderRoute: typeof ResultsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/subjects': {
@@ -104,6 +217,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AttendanceRoute: AttendanceRoute,
+  MarksRoute: MarksRoute,
+  PerformanceRoute: PerformanceRoute,
+  ReportsRoute: ReportsRoute,
+  ResultsRoute: ResultsRoute,
   SubjectsRoute: SubjectsRoute,
   StudentsStudentIdRoute: StudentsStudentIdRoute,
   StudentsIndexRoute: StudentsIndexRoute,
