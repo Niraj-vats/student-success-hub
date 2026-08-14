@@ -76,6 +76,7 @@ def get_students():
     conn.close()
     return jsonify([dict(ix) for ix in students])
 
+@login_required
 @app.route('/api/students/<int:id>', methods=['GET'])
 def get_student(id):
     conn = get_db_connection()
@@ -85,6 +86,7 @@ def get_student(id):
         return jsonify({'error': 'Student not found'}), 404
     return jsonify(dict(student))
 
+@login_required
 @app.route('/api/students', methods=['POST'])
 def add_student():
     data = request.json
@@ -103,6 +105,7 @@ def add_student():
         conn.close()
         return jsonify({'error': str(e)}), 400
 
+@login_required
 @app.route('/api/students/<int:id>', methods=['PUT'])
 def update_student(id):
     data = request.json
@@ -115,6 +118,7 @@ def update_student(id):
     conn.close()
     return jsonify({'message': 'Student updated successfully'})
 
+@login_required
 @app.route('/api/students/<int:id>', methods=['DELETE'])
 def delete_student(id):
     conn = get_db_connection()
@@ -125,6 +129,7 @@ def delete_student(id):
 
 # --- Subjects API ---
 
+@login_required
 @app.route('/api/subjects', methods=['GET'])
 def get_subjects():
     conn = get_db_connection()
@@ -132,6 +137,7 @@ def get_subjects():
     conn.close()
     return jsonify([dict(ix) for ix in subjects])
 
+@login_required
 @app.route('/api/subjects', methods=['POST'])
 def add_subject():
     data = request.json
@@ -150,6 +156,7 @@ def add_subject():
         conn.close()
         return jsonify({'error': str(e)}), 400
 
+@login_required
 @app.route('/api/subjects/<int:id>', methods=['GET'])
 def get_subject(id):
     conn = get_db_connection()
@@ -159,6 +166,7 @@ def get_subject(id):
         return jsonify({'error': 'Subject not found'}), 404
     return jsonify(dict(subject))
 
+@login_required
 @app.route('/api/subjects/<int:id>', methods=['PUT'])
 def update_subject(id):
     data = request.json
@@ -175,6 +183,7 @@ def update_subject(id):
         conn.close()
         return jsonify({'error': str(e)}), 400
 
+@login_required
 @app.route('/api/subjects/<int:id>', methods=['DELETE'])
 def delete_subject(id):
     conn = get_db_connection()
@@ -197,6 +206,7 @@ def delete_subject(id):
 
 # --- Marks API ---
 
+@login_required
 @app.route('/api/marks', methods=['GET'])
 def get_marks():
     conn = get_db_connection()
@@ -211,6 +221,7 @@ def get_marks():
     conn.close()
     return jsonify([dict(ix) for ix in marks])
 
+@login_required
 @app.route('/api/marks/<int:id>', methods=['GET'])
 def get_mark(id):
     conn = get_db_connection()
@@ -220,6 +231,7 @@ def get_mark(id):
         return jsonify({'error': 'Mark record not found'}), 404
     return jsonify(dict(mark))
 
+@login_required
 @app.route('/api/marks', methods=['POST'])
 def add_marks():
     data = request.json
@@ -264,6 +276,7 @@ def add_marks():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+@login_required
 @app.route('/api/marks/<int:id>', methods=['PUT'])
 def update_marks(id):
     data = request.json
@@ -306,6 +319,7 @@ def update_marks(id):
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+@login_required
 @app.route('/api/marks/<int:id>', methods=['DELETE'])
 def delete_marks(id):
     conn = get_db_connection()
@@ -316,6 +330,7 @@ def delete_marks(id):
 
 # --- Attendance API ---
 
+@login_required
 @app.route('/api/attendance', methods=['GET'])
 def get_attendance():
     conn = get_db_connection()
@@ -329,6 +344,7 @@ def get_attendance():
     conn.close()
     return jsonify([dict(ix) for ix in attendance])
 
+@login_required
 @app.route('/api/attendance/<int:id>', methods=['GET'])
 def get_attendance_by_id(id):
     conn = get_db_connection()
@@ -338,6 +354,7 @@ def get_attendance_by_id(id):
         return jsonify({'error': 'Attendance record not found'}), 404
     return jsonify(dict(record))
 
+@login_required
 @app.route('/api/attendance', methods=['POST'])
 def add_attendance():
     data = request.json
@@ -382,6 +399,7 @@ def add_attendance():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+@login_required
 @app.route('/api/attendance/<int:id>', methods=['PUT'])
 def update_attendance(id):
     data = request.json
@@ -427,6 +445,7 @@ def update_attendance(id):
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+@login_required
 @app.route('/api/attendance/<int:id>', methods=['DELETE'])
 def delete_attendance(id):
     conn = get_db_connection()
@@ -437,6 +456,7 @@ def delete_attendance(id):
 
 # --- Dashboard API ---
 
+@login_required
 @app.route('/api/dashboard/stats', methods=['GET'])
 def get_dashboard_stats():
     conn = get_db_connection()
@@ -458,6 +478,7 @@ def get_dashboard_stats():
 
 # --- Academic Performance API ---
 
+@login_required
 @app.route('/api/performance', methods=['GET'])
 def get_all_performance():
     conn = get_db_connection()
@@ -477,6 +498,7 @@ def get_all_performance():
     conn.close()
     return jsonify(results)
 
+@login_required
 @app.route('/api/performance/<int:student_id>', methods=['GET'])
 def get_student_performance(student_id):
     conn = get_db_connection()
@@ -574,6 +596,7 @@ def calculate_student_performance(conn, student_id):
 
 # --- Results API ---
 
+@login_required
 @app.route('/api/results/<int:student_id>', methods=['GET'])
 def get_student_results(student_id):
     conn = get_db_connection()
@@ -652,6 +675,7 @@ def get_student_results(student_id):
 
 # --- Reports API ---
 
+@login_required
 @app.route('/api/reports/class-summary', methods=['GET'])
 def get_class_summary():
     conn = get_db_connection()
@@ -696,6 +720,7 @@ def get_class_summary():
         conn.close()
         return jsonify({'error': str(e)}), 500
 
+@login_required
 @app.route('/api/reports/attendance-summary', methods=['GET'])
 def get_attendance_summary():
     conn = get_db_connection()
