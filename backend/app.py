@@ -1341,6 +1341,7 @@ def update_teacher(id):
             (data['teacher_code'], data['name'], data['email'], data['department'], id)
         )
         conn.commit()
+        log_audit('UPDATE', 'teachers', id, f"Admin updated teacher {data['name']}")
         conn.close()
         return jsonify({'message': 'Teacher updated successfully'})
     except Exception as e:
