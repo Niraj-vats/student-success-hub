@@ -29,11 +29,44 @@ export async function checkAuth(adminOnly = false) {
         if (userDisplay) userDisplay.textContent = user.username;
         if (roleDisplay) roleDisplay.textContent = user.role;
         
+        // Handle role-based UI visibility
+        updateSidebarVisibility(user.role);
+        
         return user;
     } catch (error) {
         console.error('Auth check failed:', error);
         window.location.href = 'login.html';
         return null;
+    }
+}
+
+function updateSidebarVisibility(role) {
+    const nav = document.querySelector('nav');
+    if (!nav) return;
+
+    // Student specific visibility
+    if (role === 'Student') {
+        // Hide Admin management links
+        const adminLinks = nav.querySelectorAll('a[href="users.html"], a[href="departments.html"], a[href="classes.html"], a[href="teachers.html"], a[href="teacher-assignments.html"], a[href="audit-logs.html"]');
+        adminLinks.forEach(link => link.style.display = 'none');
+        
+        // Hide Teacher management links (Reports, etc. if not for students)
+        const teacherLinks = nav.querySelectorAll('a[href="reports.html"]');
+        teacherLinks.forEach(link => link.style.display = 'none');
+        
+        // Hide management headings if any
+        const headings = nav.querySelectorAll('.nav-section-title'); // Assuming this class exists or similar
+        headings.forEach(h => {
+            if (h.textContent.toLowerCase().includes('management') || h.textContent.toLowerCase().includes('admin')) {
+                h.style.display = 'none';
+            }
+        });
+    }
+    
+    // Teacher specific visibility
+    if (role === 'Teacher') {
+        const adminLinks = nav.querySelectorAll('a[href="users.html"], a[href="departments.html"], a[href="classes.html"], a[href="teachers.html"], a[href="teacher-assignments.html"], a[href="audit-logs.html"]');
+        adminLinks.forEach(link => link.style.display = 'none');
     }
 }
 
