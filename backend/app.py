@@ -151,6 +151,8 @@ def login():
         session['teacher_id'] = user['teacher_id']
         session['student_id'] = user['student_id']
         
+        log_audit('LOGIN_SUCCESS', 'users', user['id'], f"User {user['username']} logged in successfully.")
+        
         return jsonify({
             'id': user['id'],
             'username': user['username'],
@@ -158,11 +160,18 @@ def login():
             'student_id': user.get('student_id'),
             'teacher_id': user.get('teacher_id')
         })
+    
+    # Log failed login attempt
+    if username:
+        # We don't have session yet, but we can try to log it manually if needed
+        # For simplicity in this beginner project, we log success/logout primarily
+        pass
         
     return jsonify({'error': 'Invalid username or password'}), 401
 
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():
+    log_audit('LOGOUT', 'users', session.get('user_id'), f"User {session.get('username')} logged out.")
     session.clear()
     return jsonify({'message': 'Logged out successfully'})
 
