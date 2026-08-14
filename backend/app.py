@@ -303,6 +303,15 @@ def get_subjects():
             return jsonify([])
         query += " WHERE id IN ({})".format(','.join(['?'] * len(authorized_subjects)))
         params = authorized_subjects
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        student = conn.execute('SELECT semester FROM students WHERE id = ?', (student_id,)).fetchone()
+        if student:
+            query += " WHERE semester = ?"
+            params = [student['semester']]
+        else:
+            conn.close()
+            return jsonify([])
         
     subjects = conn.execute(query, params).fetchall()
     conn.close()
