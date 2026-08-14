@@ -793,8 +793,25 @@ def get_student_results(student_id):
         conn.close()
         return jsonify({'error': 'Student not found'}), 404
         
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        if not is_teacher_authorized(teacher_id, class_id=student['class_id']):
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+
     # Get subjects for the student's semester
-    subjects = conn.execute('SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?', (student['semester'],)).fetchall()
+    subjects_query = 'SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?'
+    subjects_params = [student['semester']]
+    
+    if session.get('role') == 'Teacher':
+        auth_subjects = get_authorized_subjects(session.get('teacher_id'), student['class_id'])
+        if not auth_subjects:
+            conn.close()
+            return jsonify({'error': 'No accessible subjects'}), 403
+        subjects_query += " AND id IN ({})".format(','.join(['?']*len(auth_subjects)))
+        subjects_params.extend(auth_subjects)
+
+    subjects = conn.execute(subjects_query, subjects_params).fetchall()
     
     # Get marks for those subjects
     marks = conn.execute('SELECT * FROM marks WHERE student_id = ?', (student_id,)).fetchall()
