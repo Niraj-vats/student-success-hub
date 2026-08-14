@@ -952,6 +952,120 @@ def delete_teacher_assignment(id):
         conn.close()
         return jsonify({'error': str(e)}), 400
 
+# --- User Management API ---
+
+@app.route('/api/users', methods=['GET'])
+@admin_required
+def get_users():
+    conn = get_db_connection()
+    # Join with profiles to show names if available
+    users = conn.execute('''
+        SELECT u.id, u.username, u.role, u.student_id, u.teacher_id, u.is_active, u.created_at,
+               s.name as student_name, t.name as teacher_name
+        FROM users u
+        LEFT JOIN students s ON u.student_id = s.id
+        LEFT JOIN teachers t ON u.teacher_id = t.id
+    ''').fetchall()
+    conn.close()
+    # Remove any potential password hash from response for security
+    return jsonify([dict(ix) for ix in users])
+
+@app.route('/api/users', methods=['POST'])
+@admin_required
+def create_user():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    role = data.get('role')
+    student_id = data.get('student_id')
+    teacher_id = data.get('teacher_id')
+    
+    if not username or not password or not role:
+        return jsonify({'error': 'Username, password, and role are required'}), 400
+        
+    if role not in ['Admin', 'Teacher', 'Student']:
+        return jsonify({'error': 'Invalid role'}), 400
+        
+    password_hash = generate_password_hash(password)
+    
+    conn = get_db_connection()
+    try:
+        # Check unique username
+        existing = conn.execute('SELECT 1 FROM users WHERE username = ?', (username,)).fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'error': 'Username already exists'}), 400
+            
+        # Check if student/teacher already has a user account
+        if student_id:
+            existing = conn.execute('SELECT 1 FROM users WHERE student_id = ?', (student_id,)).fetchone()
+            if existing:
+                conn.close()
+                return jsonify({'error': 'This student already has a login account'}), 400
+        if teacher_id:
+            existing = conn.execute('SELECT 1 FROM users WHERE teacher_id = ?', (teacher_id,)).fetchone()
+            if existing:
+                conn.close()
+                return jsonify({'error': 'This teacher already has a login account'}), 400
+
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO users (username, password_hash, role, student_id, teacher_id, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (username, password_hash, role, student_id, teacher_id, 1))
+        conn.commit()
+        new_id = cursor.lastrowid
+        conn.close()
+        return jsonify({'id': new_id, 'message': 'User created successfully'}), 201
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/users/<int:id>/status', methods=['PUT'])
+@admin_required
+def update_user_status(id):
+    data = request.json
+    is_active = 1 if data.get('is_active') else 0
+    
+    # Prevent admin from deactivating themselves
+    if id == session.get('user_id'):
+        return jsonify({'error': 'You cannot deactivate your own account'}), 400
+        
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET is_active = ? WHERE id = ?', (is_active, id))
+    conn.commit()
+    conn.close()
+    return jsonify({'message': f"User account {'activated' if is_active else 'deactivated'} successfully"})
+
+@app.route('/api/users/<int:id>/password', methods=['PUT'])
+@admin_required
+def reset_user_password(id):
+    data = request.json
+    new_password = data.get('password')
+    
+    if not new_password:
+        return jsonify({'error': 'New password is required'}), 400
+        
+    password_hash = generate_password_hash(new_password)
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (password_hash, id))
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Password reset successfully'})
+
+@app.route('/api/users/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_user(id):
+    # Prevent admin from deleting themselves
+    if id == session.get('user_id'):
+        return jsonify({'error': 'You cannot delete your own account'}), 400
+        
+    conn = get_db_connection()
+    conn.execute('DELETE FROM users WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'User account deleted successfully'})
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 
