@@ -89,7 +89,53 @@ def add_subject():
         conn.close()
         return jsonify({'error': str(e)}), 400
 
+@app.route('/api/subjects/<int:id>', methods=['GET'])
+def get_subject(id):
+    conn = get_db_connection()
+    subject = conn.execute('SELECT * FROM subjects WHERE id = ?', (id,)).fetchone()
+    conn.close()
+    if subject is None:
+        return jsonify({'error': 'Subject not found'}), 404
+    return jsonify(dict(subject))
+
+@app.route('/api/subjects/<int:id>', methods=['PUT'])
+def update_subject(id):
+    data = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE subjects SET subject_code=?, subject_name=?, semester=?, credits=? WHERE id=?",
+            (data['subject_code'], data['subject_name'], data['semester'], data['credits'], id)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Subject updated successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/subjects/<int:id>', methods=['DELETE'])
+def delete_subject(id):
+    conn = get_db_connection()
+    try:
+        # Check if subject is referenced in marks or attendance
+        marks_ref = conn.execute('SELECT COUNT(*) FROM marks WHERE subject_id = ?', (id,)).fetchone()[0]
+        attendance_ref = conn.execute('SELECT COUNT(*) FROM attendance WHERE subject_id = ?', (id,)).fetchone()[0]
+        
+        if marks_ref > 0 or attendance_ref > 0:
+            conn.close()
+            return jsonify({'error': 'Cannot delete subject because it is referenced in marks or attendance records.'}), 400
+            
+        conn.execute('DELETE FROM subjects WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Subject deleted successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
 # --- Dashboard API ---
+
 
 @app.route('/api/dashboard/stats', methods=['GET'])
 def get_dashboard_stats():
