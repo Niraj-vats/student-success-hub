@@ -1,35 +1,19 @@
 <!-- '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
                                         
                                             
-                                            IMPORTANT PROJECT DEVELOPMENT RULES
+                                            We are continuing development of the existing
 
-From this point onward, this project must be designed around the developer's ACTUAL CURRENT SKILLS.
+"Student Academic & Performance Management System".
 
-The developer's strongest/current technologies are:
+IMPORTANT:
 
-1. HTML
+Do NOT rebuild the project.
 
-2. CSS
+Do NOT change the technology stack.
 
-3. Basic JavaScript
+Do NOT introduce React, TypeScript, Node.js, or any new framework.
 
-4. Basic Python
-
-5. Medium-level C
-
-6. Medium-level DBMS/SQL
-
-The developer is NOT currently an advanced React, TypeScript, Node.js, or modern full-stack framework developer.
-
-Therefore, the project must prioritize technologies and concepts that the developer can realistically understand, explain, modify and debug.
-
-==================================================
-
-PRIMARY TECHNOLOGY PRIORITY
-
-==================================================
-
-Frontend:
+KEEP EXACTLY:
 
 - HTML
 
@@ -37,261 +21,308 @@ Frontend:
 
 - Vanilla JavaScript
 
-Backend:
-
-- Python
-
-- Flask
-
-Database:
+- Python Flask
 
 - SQLite
 
-- SQL
+- Existing Vite development setup
 
-Development principles:
+This task is ONLY to complete the STUDENT MODULE.
 
-- Simple
-
-- Beginner-friendly
-
-- Modular
-
-- Easy to understand
-
-- Easy to debug
-
-- Minimal dependencies
-
-- No unnecessary abstractions
+Do not modify Subjects, Marks, Attendance, Performance, Results, Reports, or Dashboard logic except where absolutely required to support Student Details.
 
 ==================================================
 
-TECHNOLOGIES TO AVOID UNLESS ABSOLUTELY NECESSARY
+PART 1 — STUDENT SEARCH
 
 ==================================================
 
-Do NOT introduce:
+The existing students page already has a student list.
 
-- React
+Implement working client-side search.
 
-- TypeScript
+Search should work by:
 
-- TanStack
+- Student ID
 
-- Next.js
+- Name
 
-- Node.js
+- Roll Number
 
-- Express
+- Department
 
-- MongoDB
+- Email
 
-- Supabase
+Search should update the displayed student list immediately.
 
-- Firebase
+If no student matches, show a clear:
 
-- GraphQL
+"No students found"
 
-- Redux
+message.
 
-- complex state-management libraries
+Do not create a new backend search API.
 
-- microservices
+Use the students already fetched from the existing Flask API.
 
-- Docker
+==================================================
 
-- unnecessary UI frameworks
+PART 2 — STUDENT FILTER
 
-If any of these technologies appear in the existing prototype, do not automatically continue building more functionality with them.
+==================================================
 
-The final architecture should preferably use:
+Add working filters for:
 
-HTML + CSS + Vanilla JavaScript
+- Department
 
-+
+- Semester
 
-Python Flask
+Filters must work together with the search field.
 
-+
+Example:
+
+Search = "Computer"
+
+Department = "Computer Science"
+
+Semester = "6"
+
+The displayed list should satisfy all active filters.
+
+Add a "Clear Filters" option.
+
+Do not add unnecessary filters.
+
+==================================================
+
+PART 3 — STUDENT DETAILS PAGE
+
+==================================================
+
+Create:
+
+frontend/student-details.html
+
+When the user clicks "View" for a student:
+
+Navigate to:
+
+student-details.html?id=<student_id>
+
+The page should fetch the selected student using the existing Flask endpoint:
+
+GET /api/students/<id>
+
+Display:
+
+### Student Profile
+
+- Name
+
+- Student ID
+
+- Roll Number
+
+- Department
+
+- Semester
+
+- Email
+
+- Phone
+
+### Academic Summary
+
+For now, display the student's basic academic section using available data.
+
+Do NOT create fake marks or attendance calculations on this page yet.
+
+Marks and attendance integration will be implemented in later phases.
+
+Show a clear placeholder such as:
+
+"Marks and attendance information will appear here after the Marks and Attendance modules are implemented."
+
+Do not create the Marks or Attendance modules in this task.
+
+==================================================
+
+PART 4 — NAVIGATION
+
+==================================================
+
+Add a working "View" action from the Students table.
+
+The View action should open the correct Student Details page using the student's database ID.
+
+Add a "Back to Students" button on the Student Details page.
+
+==================================================
+
+PART 5 — ERROR HANDLING
+
+==================================================
+
+If:
+
+- student ID is missing
+
+- student does not exist
+
+- API request fails
+
+show a user-friendly error message.
+
+Do not expose raw Python/SQLite errors to the user.
+
+==================================================
+
+PART 6 — DATA SOURCE
+
+==================================================
+
+IMPORTANT:
+
+The frontend must continue using the Flask API.
+
+Do NOT import hardcoded student data.
+
+The flow must remain:
+
+Students page
+
+↓
+
+fetch()
+
+↓
+
+python
+Flask API
+
+↓
 
 SQLite
 
-==================================================
+↓
 
-PROJECT PURPOSE
+JSON
 
-==================================================
+↓
 
-This project is NOT being built simply to demonstrate a large number of features.
+JavaScript
 
-The primary purpose is to create a realistic academic management application that the developer can understand and confidently explain during technical questioning.
+↓
 
-The project should help demonstrate practical understanding of:
+HTML
 
-- Programming fundamentals
+Student Details must use the existing:
 
-- Python
+GET /api/students/<id>
 
-- JavaScript
-
-- SQL
-
-- DBMS
-
-- CRUD operations
-
-- REST APIs
-
-- HTTP request/response
-
-- Database relationships
-
-- Validation
-
-- Basic application architecture
-
-Do not add technologies merely to make the project appear more advanced.
+endpoint.
 
 ==================================================
 
-PROJECT
+PART 7 — PRESERVE EXISTING FUNCTIONALITY
 
 ==================================================
 
-Student Academic & Performance Management System
+Do not break:
 
-The application should manage:
+- Student list
 
-1. Students
+- Add Student
 
-2. Subjects
+- Edit Student
 
-3. Marks
+- Delete Student
 
-4. Attendance
+- Dashboard
 
-5. Results
+- Existing Subject functionality
 
-6. Academic Performance
+Do not change the database schema.
 
-7. Basic Reports
+Do not change existing Flask routes unless absolutely necessary.
 
-8. Dashboard
-
-==================================================
-
-CORE REQUIREMENT
+Do not install new dependencies.
 
 ==================================================
 
-Every major feature should be simple enough that a beginner/intermediate developer can understand:
-
-User action
-
-→ frontend
-
-→ JavaScript
-
-→ HTTP request
-
-→ Flask route
-
-→ Python logic
-
-→ SQLite query
-
-→ response
-
-→ frontend update
-
-The developer should be able to explain this flow.
+UI REQUIREMENTS
 
 ==================================================
 
-IMPORTANT DEVELOPMENT RULE
+Keep the existing visual design.
+
+Student Details should be clean and professional.
+
+Use existing CSS patterns where possible.
+
+Responsive:
+
+- Desktop
+
+- Tablet
+
+- Mobile
+
+Do not introduce a UI framework.
 
 ==================================================
 
-Do not make architectural decisions based on what is easiest for the AI.
-
-Make architectural decisions based on what is easiest for the DEVELOPER to understand and learn.
-
-If there are two technically valid approaches:
-
-Approach A:
-
-more modern but significantly harder to understand
-
-Approach B:
-
-simpler and easier to understand
-
-Always prefer Approach B unless there is a strong technical reason not to.
+IMPORTANT SCOPE LIMIT
 
 ==================================================
 
-PROJECT SCOPE
+ONLY implement:
 
-==================================================
+1. Student search
 
-Do not add:
+2. Department filter
 
-- AI/ML
+3. Semester filter
 
-- chatbot
+4. Clear filters
 
-- WhatsApp
+5. Student Details page
 
-- payment gateway
+6. View navigation
 
-- CRM
+7. Basic error handling
 
-- ERP
+DO NOT implement:
 
-- Tally
+- Marks
 
-- complex cloud architecture
+- Attendance
 
-- unnecessary third-party APIs
+- Performance
 
-- unnecessary authentication complexity
+- Results
 
-Keep the project focused.
+- Reports
 
-==================================================
+- Authentication
 
-FUTURE DEVELOPMENT
+- New database tables
 
-==================================================
+- New frameworks
 
-The project may be rebuilt from scratch if necessary.
+After completing this task, provide a concise summary of:
 
-Do not assume that the current frontend implementation must be preserved.
+- Files created
 
-If the current implementation conflicts with the above technology and learning requirements, prioritize the requirements above.
+- Files modified
 
-==================================================
+- Flask routes used
 
-IMPORTANT
+- Student features now working
 
-==================================================
+- Any known limitations
 
-Before implementing any major future feature:
-
-1. Check whether it matches the developer's skill level.
-
-2. Keep dependencies minimal.
-
-3. Keep code understandable.
-
-4. Keep architecture explainable.
-
-5. Avoid unnecessary abstraction.
-
-6. Do not introduce a new technology unless it is genuinely required.
-
-The final project should be technically respectable but intentionally simple enough for the developer to understand completely. -->
+Do not make additional improvements outside this scope. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
