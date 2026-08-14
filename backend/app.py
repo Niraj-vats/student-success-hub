@@ -276,76 +276,53 @@ def delete_subject(id):
 @app.route('/api/marks', methods=['GET'])
 def get_marks():
     conn = get_db_connection()
-    # Join with students and subjects to get names and extra info for filtering
-    marks = conn.execute('''
+    query = '''
         SELECT m.*, s.name as student_name, s.student_id as student_identifier, 
                sub.subject_name, sub.subject_code, sub.semester
         FROM marks m
         JOIN students s ON m.student_id = s.id
         JOIN subjects sub ON m.subject_id = sub.id
-    ''').fetchall()
+    '''
+    params = []
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        authorized_classes = get_authorized_classes(teacher_id)
+        authorized_subjects = get_authorized_subjects(teacher_id)
+        
+        if not authorized_classes or not authorized_subjects:
+            conn.close()
+            return jsonify([])
+            
+        query += " WHERE s.class_id IN ({}) AND m.subject_id IN ({})".format(
+            ','.join(['?'] * len(authorized_classes)),
+            ','.join(['?'] * len(authorized_subjects))
+        )
+        params.extend(authorized_classes)
+        params.extend(authorized_subjects)
+
+    marks = conn.execute(query, params).fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in marks])
-
-@login_required
-@app.route('/api/marks/<int:id>', methods=['GET'])
-def get_mark(id):
-    conn = get_db_connection()
-    mark = conn.execute('SELECT * FROM marks WHERE id = ?', (id,)).fetchone()
-    conn.close()
-    if mark is None:
-        return jsonify({'error': 'Mark record not found'}), 404
-    return jsonify(dict(mark))
 
 @login_required
 @app.route('/api/marks', methods=['POST'])
 def add_marks():
     data = request.json
-    try:
-        internal = float(data.get('internal_marks', 0))
-        external = float(data.get('external_marks', 0))
+    student_id = data.get('student_id')
+    subject_id = data.get('subject_id')
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
         
-        if internal < 0 or internal > 30 or external < 0 or external > 70:
-            return jsonify({'error': 'Invalid mark values. Internal: 0-30, External: 0-70.'}), 400
-
-        # Calculation
-        total = internal + external
-        percentage = total # Since total max is 100
-        grade = 'F'
-        if percentage >= 90: grade = 'A+'
-        elif percentage >= 80: grade = 'A'
-        elif percentage >= 70: grade = 'B+'
-        elif percentage >= 60: grade = 'B'
-        elif percentage >= 50: grade = 'C'
-        elif percentage >= 40: grade = 'D'
-        
-        pass_fail = 'Pass' if percentage >= 40 else 'Fail'
-
+        # Verify student belongs to an authorized class
         conn = get_db_connection()
-        # Check duplicate
-        exists = conn.execute('SELECT 1 FROM marks WHERE student_id = ? AND subject_id = ?', 
-                             (data['student_id'], data['subject_id'])).fetchone()
-        if exists:
+        student = conn.execute('SELECT class_id FROM students WHERE id = ?', (student_id,)).fetchone()
+        if not student or not is_teacher_authorized(teacher_id, class_id=student['class_id'], subject_id=subject_id):
             conn.close()
-            return jsonify({'error': 'Marks record for this student and subject already exists. Please edit the existing record.'}), 400
-
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO marks (student_id, subject_id, internal_marks, external_marks, total_marks, percentage, grade, pass_fail)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (data['student_id'], data['subject_id'], internal, external, total, percentage, grade, pass_fail))
-        conn.commit()
+            return jsonify({'error': 'Unauthorized: You are not assigned to this class and subject.'}), 403
         conn.close()
-        return jsonify({'message': 'Marks added successfully'}), 201
-    except ValueError:
-        return jsonify({'error': 'Marks must be numeric values.'}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
 
-@login_required
-@app.route('/api/marks/<int:id>', methods=['PUT'])
-def update_marks(id):
-    data = request.json
     try:
         internal = float(data.get('internal_marks', 0))
         external = float(data.get('external_marks', 0))
@@ -366,24 +343,68 @@ def update_marks(id):
         pass_fail = 'Pass' if percentage >= 40 else 'Fail'
 
         conn = get_db_connection()
-        # Check duplicate (excluding current record)
-        exists = conn.execute('SELECT 1 FROM marks WHERE student_id = ? AND subject_id = ? AND id != ?', 
-                             (data['student_id'], data['subject_id'], id)).fetchone()
+        # Check duplicate
+        exists = conn.execute('SELECT 1 FROM marks WHERE student_id = ? AND subject_id = ?', 
+                             (student_id, subject_id)).fetchone()
         if exists:
             conn.close()
-            return jsonify({'error': 'Another marks record for this student and subject already exists.'}), 400
+            return jsonify({'error': 'Marks record for this student and subject already exists.'}), 400
 
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO marks (student_id, subject_id, internal_marks, external_marks, total_marks, percentage, grade, pass_fail, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (student_id, subject_id, internal, external, total, percentage, grade, pass_fail, session.get('user_id')))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Marks added successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@login_required
+@app.route('/api/marks/<int:id>', methods=['PUT'])
+def update_marks(id):
+    data = request.json
+    # Authorization check
+    if session.get('role') == 'Teacher':
+        conn = get_db_connection()
+        mark = conn.execute('SELECT student_id, subject_id FROM marks WHERE id = ?', (id,)).fetchone()
+        if not mark:
+            conn.close()
+            return jsonify({'error': 'Record not found'}), 404
+        
+        student = conn.execute('SELECT class_id FROM students WHERE id = ?', (mark['student_id'],)).fetchone()
+        if not is_teacher_authorized(session.get('teacher_id'), class_id=student['class_id'], subject_id=mark['subject_id']):
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+        conn.close()
+
+    try:
+        internal = float(data.get('internal_marks', 0))
+        external = float(data.get('external_marks', 0))
+        # ... validation logic ...
+        total = internal + external
+        percentage = total
+        grade = 'F'
+        if percentage >= 90: grade = 'A+'
+        elif percentage >= 80: grade = 'A'
+        elif percentage >= 70: grade = 'B+'
+        elif percentage >= 60: grade = 'B'
+        elif percentage >= 50: grade = 'C'
+        elif percentage >= 40: grade = 'D'
+        pass_fail = 'Pass' if percentage >= 40 else 'Fail'
+
+        conn = get_db_connection()
         conn.execute('''
-            UPDATE marks SET student_id=?, subject_id=?, internal_marks=?, external_marks=?, total_marks=?, percentage=?, grade=?, pass_fail=?
+            UPDATE marks SET internal_marks=?, external_marks=?, total_marks=?, percentage=?, grade=?, pass_fail=?, updated_by=?
             WHERE id=?
-        ''', (data['student_id'], data['subject_id'], internal, external, total, percentage, grade, pass_fail, id))
+        ''', (internal, external, total, percentage, grade, pass_fail, session.get('user_id'), id))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Marks updated successfully'})
-    except ValueError:
-        return jsonify({'error': 'Marks must be numeric values.'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
 
 @login_required
 @app.route('/api/marks/<int:id>', methods=['DELETE'])
