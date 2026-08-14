@@ -430,6 +430,10 @@ def get_marks():
         )
         params.extend(authorized_classes)
         params.extend(authorized_subjects)
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        query += " WHERE m.student_id = ?"
+        params = [student_id]
 
     marks = conn.execute(query, params).fetchall()
     conn.close()
