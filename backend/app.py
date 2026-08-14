@@ -1205,6 +1205,10 @@ def update_department(id):
 def delete_department(id):
     conn = get_db_connection()
     try:
+        # Get name for audit
+        dept = conn.execute('SELECT department_name FROM departments WHERE id = ?', (id,)).fetchone()
+        name = dept['department_name'] if dept else "Unknown"
+        
         # Check dependencies
         classes_ref = conn.execute('SELECT COUNT(*) FROM classes WHERE department_id = ?', (id,)).fetchone()[0]
         if classes_ref > 0:
@@ -1213,6 +1217,7 @@ def delete_department(id):
             
         conn.execute('DELETE FROM departments WHERE id = ?', (id,))
         conn.commit()
+        log_audit('DELETE', 'departments', id, f"Admin deleted department {name}")
         conn.close()
         return jsonify({'message': 'Department deleted successfully'})
     except Exception as e:
