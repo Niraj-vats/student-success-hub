@@ -749,6 +749,167 @@ def get_attendance_summary():
         conn.close()
         return jsonify({'error': str(e)}), 500
 
+# --- Phase 2A: Departments, Classes, Teachers, Assignments API ---
+
+@app.route('/api/departments', methods=['GET'])
+@login_required
+def get_departments():
+    conn = get_db_connection()
+    departments = conn.execute('SELECT * FROM departments').fetchall()
+    conn.close()
+    return jsonify([dict(ix) for ix in departments])
+
+@app.route('/api/departments', methods=['POST'])
+@login_required
+def add_department():
+    data = request.json
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO departments (department_code, department_name) VALUES (?, ?)",
+            (data['department_code'], data['department_name'])
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+        conn.close()
+        return jsonify({'id': new_id, 'message': 'Department added successfully'}), 201
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/classes', methods=['GET'])
+@login_required
+def get_classes():
+    conn = get_db_connection()
+    classes = conn.execute('''
+        SELECT c.*, d.department_name 
+        FROM classes c
+        JOIN departments d ON c.department_id = d.id
+    ''').fetchall()
+    conn.close()
+    return jsonify([dict(ix) for ix in classes])
+
+@app.route('/api/classes', methods=['POST'])
+@login_required
+def add_class():
+    data = request.json
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO classes (class_name, department_id, semester, section, academic_year) VALUES (?, ?, ?, ?, ?)",
+            (data['class_name'], data['department_id'], data['semester'], data['section'], data['academic_year'])
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+        conn.close()
+        return jsonify({'id': new_id, 'message': 'Class added successfully'}), 201
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/teachers', methods=['GET'])
+@login_required
+def get_teachers():
+    conn = get_db_connection()
+    teachers = conn.execute('SELECT * FROM teachers').fetchall()
+    conn.close()
+    return jsonify([dict(ix) for ix in teachers])
+
+@app.route('/api/teachers', methods=['POST'])
+@login_required
+def add_teacher():
+    data = request.json
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO teachers (teacher_code, name, email, department) VALUES (?, ?, ?, ?)",
+            (data['teacher_code'], data['name'], data['email'], data['department'])
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+        conn.close()
+        return jsonify({'id': new_id, 'message': 'Teacher added successfully'}), 201
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/teacher-assignments', methods=['GET'])
+@login_required
+def get_teacher_assignments():
+    conn = get_db_connection()
+    assignments = conn.execute('''
+        SELECT ta.*, t.name as teacher_name, c.class_name, s.subject_name 
+        FROM teacher_assignments ta
+        JOIN teachers t ON ta.teacher_id = t.id
+        JOIN classes c ON ta.class_id = c.id
+        JOIN subjects s ON ta.subject_id = s.id
+    ''').fetchall()
+    conn.close()
+    return jsonify([dict(ix) for ix in assignments])
+
+@app.route('/api/teacher-assignments', methods=['POST'])
+@login_required
+def add_teacher_assignment():
+    data = request.json
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        assigned_by = session.get('user_id')
+        cursor.execute(
+            "INSERT INTO teacher_assignments (teacher_id, class_id, subject_id, assigned_by) VALUES (?, ?, ?, ?)",
+            (data['teacher_id'], data['class_id'], data['subject_id'], assigned_by)
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+        conn.close()
+        return jsonify({'id': new_id, 'message': 'Teacher assigned successfully'}), 201
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/teacher-assignments/<int:id>', methods=['GET'])
+@login_required
+def get_teacher_assignment(id):
+    conn = get_db_connection()
+    assignment = conn.execute('SELECT * FROM teacher_assignments WHERE id = ?', (id,)).fetchone()
+    conn.close()
+    if assignment is None:
+        return jsonify({'error': 'Assignment not found'}), 404
+    return jsonify(dict(assignment))
+
+@app.route('/api/teacher-assignments/<int:id>', methods=['PUT'])
+@login_required
+def update_teacher_assignment(id):
+    data = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE teacher_assignments SET teacher_id=?, class_id=?, subject_id=? WHERE id=?",
+            (data['teacher_id'], data['class_id'], data['subject_id'], id)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Assignment updated successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/teacher-assignments/<int:id>', methods=['DELETE'])
+@login_required
+def delete_teacher_assignment(id):
+    conn = get_db_connection()
+    try:
+        conn.execute('DELETE FROM teacher_assignments WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Assignment deleted successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 
