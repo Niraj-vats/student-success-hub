@@ -23,6 +23,36 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
             return jsonify({'error': 'Unauthorized'}), 401
+        
+        # Check if user is still active
+        conn = get_db_connection()
+        user = conn.execute('SELECT is_active FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        conn.close()
+        
+        if not user or not user['is_active']:
+            session.clear()
+            return jsonify({'error': 'Account is inactive or does not exist'}), 403
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+        if session.get('role') != 'Admin':
+            return jsonify({'error': 'Forbidden: Admin access required'}), 403
+        
+        # Also check active status for safety
+        conn = get_db_connection()
+        user = conn.execute('SELECT is_active FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        conn.close()
+        
+        if not user or not user['is_active']:
+            session.clear()
+            return jsonify({'error': 'Account is inactive'}), 403
+            
         return f(*args, **kwargs)
     return decorated_function
 
@@ -42,6 +72,9 @@ def login():
     conn.close()
     
     if user and check_password_hash(user['password_hash'], password):
+        if not user['is_active']:
+            return jsonify({'error': 'Account is inactive. Please contact administrator.'}), 403
+            
         session['user_id'] = user['id']
         session['username'] = user['username']
         session['role'] = user['role']
@@ -463,12 +496,17 @@ def delete_attendance(id):
 
 # --- Dashboard API ---
 
-@login_required
 @app.route('/api/dashboard/stats', methods=['GET'])
+@login_required
 def get_dashboard_stats():
     conn = get_db_connection()
     total_students = conn.execute('SELECT COUNT(*) FROM students').fetchone()[0]
     total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
+    total_teachers = conn.execute('SELECT COUNT(*) FROM teachers').fetchone()[0]
+    total_departments = conn.execute('SELECT COUNT(*) FROM departments').fetchone()[0]
+    total_classes = conn.execute('SELECT COUNT(*) FROM classes').fetchone()[0]
+    total_users = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+    
     avg_pct = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
     
     pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE pass_fail = 'Pass'").fetchone()[0]
@@ -479,6 +517,10 @@ def get_dashboard_stats():
     return jsonify({
         'totalStudents': total_students,
         'totalSubjects': total_subjects,
+        'totalTeachers': total_teachers,
+        'totalDepartments': total_departments,
+        'totalClasses': total_classes,
+        'totalUsers': total_users,
         'averagePercentage': round(avg_pct, 2),
         'passPercentage': round(pass_pct, 2)
     })
@@ -760,7 +802,7 @@ def get_departments():
     return jsonify([dict(ix) for ix in departments])
 
 @app.route('/api/departments', methods=['POST'])
-@login_required
+@admin_required
 def add_department():
     data = request.json
     conn = get_db_connection()
@@ -778,6 +820,43 @@ def add_department():
         conn.close()
         return jsonify({'error': str(e)}), 400
 
+@app.route('/api/departments/<int:id>', methods=['PUT'])
+@admin_required
+def update_department(id):
+    data = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE departments SET department_code=?, department_name=? WHERE id=?",
+            (data['department_code'], data['department_name'], id)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Department updated successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/departments/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_department(id):
+    conn = get_db_connection()
+    try:
+        # Check dependencies
+        classes_ref = conn.execute('SELECT COUNT(*) FROM classes WHERE department_id = ?', (id,)).fetchone()[0]
+        if classes_ref > 0:
+            conn.close()
+            return jsonify({'error': 'Cannot delete department: classes are linked to it.'}), 400
+            
+        conn.execute('DELETE FROM departments WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Department deleted successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+
 @app.route('/api/classes', methods=['GET'])
 @login_required
 def get_classes():
@@ -791,7 +870,7 @@ def get_classes():
     return jsonify([dict(ix) for ix in classes])
 
 @app.route('/api/classes', methods=['POST'])
-@login_required
+@admin_required
 def add_class():
     data = request.json
     conn = get_db_connection()
@@ -809,6 +888,45 @@ def add_class():
         conn.close()
         return jsonify({'error': str(e)}), 400
 
+@app.route('/api/classes/<int:id>', methods=['PUT'])
+@admin_required
+def update_class(id):
+    data = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE classes SET class_name=?, department_id=?, semester=?, section=?, academic_year=? WHERE id=?",
+            (data['class_name'], data['department_id'], data['semester'], data['section'], data['academic_year'], id)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Class updated successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/classes/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_class(id):
+    conn = get_db_connection()
+    try:
+        # Check dependencies
+        student_ref = conn.execute('SELECT COUNT(*) FROM students WHERE class_id = ?', (id,)).fetchone()[0]
+        assignment_ref = conn.execute('SELECT COUNT(*) FROM teacher_assignments WHERE class_id = ?', (id,)).fetchone()[0]
+        
+        if student_ref > 0 or assignment_ref > 0:
+            conn.close()
+            return jsonify({'error': 'Cannot delete class: students or teacher assignments are linked to it.'}), 400
+            
+        conn.execute('DELETE FROM classes WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Class deleted successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+
 @app.route('/api/teachers', methods=['GET'])
 @login_required
 def get_teachers():
@@ -818,7 +936,7 @@ def get_teachers():
     return jsonify([dict(ix) for ix in teachers])
 
 @app.route('/api/teachers', methods=['POST'])
-@login_required
+@admin_required
 def add_teacher():
     data = request.json
     conn = get_db_connection()
@@ -836,6 +954,45 @@ def add_teacher():
         conn.close()
         return jsonify({'error': str(e)}), 400
 
+@app.route('/api/teachers/<int:id>', methods=['PUT'])
+@admin_required
+def update_teacher(id):
+    data = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE teachers SET teacher_code=?, name=?, email=?, department=? WHERE id=?",
+            (data['teacher_code'], data['name'], data['email'], data['department'], id)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Teacher updated successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/teachers/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_teacher(id):
+    conn = get_db_connection()
+    try:
+        # Check dependencies
+        assignment_ref = conn.execute('SELECT COUNT(*) FROM teacher_assignments WHERE teacher_id = ?', (id,)).fetchone()[0]
+        user_ref = conn.execute('SELECT COUNT(*) FROM users WHERE teacher_id = ?', (id,)).fetchone()[0]
+        
+        if assignment_ref > 0 or user_ref > 0:
+            conn.close()
+            return jsonify({'error': 'Cannot delete teacher: assignments or user accounts are linked to it.'}), 400
+            
+        conn.execute('DELETE FROM teachers WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Teacher deleted successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+
 @app.route('/api/teacher-assignments', methods=['GET'])
 @login_required
 def get_teacher_assignments():
@@ -851,7 +1008,7 @@ def get_teacher_assignments():
     return jsonify([dict(ix) for ix in assignments])
 
 @app.route('/api/teacher-assignments', methods=['POST'])
-@login_required
+@admin_required
 def add_teacher_assignment():
     data = request.json
     conn = get_db_connection()
@@ -881,7 +1038,7 @@ def get_teacher_assignment(id):
     return jsonify(dict(assignment))
 
 @app.route('/api/teacher-assignments/<int:id>', methods=['PUT'])
-@login_required
+@admin_required
 def update_teacher_assignment(id):
     data = request.json
     conn = get_db_connection()
@@ -898,7 +1055,7 @@ def update_teacher_assignment(id):
         return jsonify({'error': str(e)}), 400
 
 @app.route('/api/teacher-assignments/<int:id>', methods=['DELETE'])
-@login_required
+@admin_required
 def delete_teacher_assignment(id):
     conn = get_db_connection()
     try:
@@ -909,6 +1066,124 @@ def delete_teacher_assignment(id):
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 400
+
+# --- User Management API ---
+
+@app.route('/api/users', methods=['GET'])
+@admin_required
+def get_users():
+    conn = get_db_connection()
+    # Join with profiles to show names if available
+    users = conn.execute('''
+        SELECT u.id, u.username, u.role, u.student_id, u.teacher_id, u.is_active, u.created_at,
+               s.name as student_name, t.name as teacher_name
+        FROM users u
+        LEFT JOIN students s ON u.student_id = s.id
+        LEFT JOIN teachers t ON u.teacher_id = t.id
+    ''').fetchall()
+    conn.close()
+    # Remove any potential password hash from response for security
+    return jsonify([dict(ix) for ix in users])
+
+@app.route('/api/users', methods=['POST'])
+@admin_required
+def create_user():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    role = data.get('role')
+    student_id = data.get('student_id')
+    teacher_id = data.get('teacher_id')
+    
+    # Standardize empty strings from frontend to None for DB constraints
+    if student_id == '': student_id = None
+    if teacher_id == '': teacher_id = None
+    
+    if not username or not password or not role:
+        return jsonify({'error': 'Username, password, and role are required'}), 400
+        
+    if role not in ['Admin', 'Teacher', 'Student']:
+        return jsonify({'error': 'Invalid role'}), 400
+        
+    password_hash = generate_password_hash(password)
+    
+    conn = get_db_connection()
+    try:
+        # Check unique username
+        existing = conn.execute('SELECT 1 FROM users WHERE username = ?', (username,)).fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'error': 'Username already exists'}), 400
+            
+        # Check if student/teacher already has a user account
+        if student_id:
+            existing = conn.execute('SELECT 1 FROM users WHERE student_id = ?', (student_id,)).fetchone()
+            if existing:
+                conn.close()
+                return jsonify({'error': 'This student already has a login account'}), 400
+        if teacher_id:
+            existing = conn.execute('SELECT 1 FROM users WHERE teacher_id = ?', (teacher_id,)).fetchone()
+            if existing:
+                conn.close()
+                return jsonify({'error': 'This teacher already has a login account'}), 400
+
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO users (username, password_hash, role, student_id, teacher_id, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (username, password_hash, role, student_id, teacher_id, 1))
+        conn.commit()
+        new_id = cursor.lastrowid
+        conn.close()
+        return jsonify({'id': new_id, 'message': 'User created successfully'}), 201
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/users/<int:id>/status', methods=['PUT'])
+@admin_required
+def update_user_status(id):
+    data = request.json
+    is_active = 1 if data.get('is_active') else 0
+    
+    # Prevent admin from deactivating themselves
+    if id == session.get('user_id'):
+        return jsonify({'error': 'You cannot deactivate your own account'}), 400
+        
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET is_active = ? WHERE id = ?', (is_active, id))
+    conn.commit()
+    conn.close()
+    return jsonify({'message': f"User account {'activated' if is_active else 'deactivated'} successfully"})
+
+@app.route('/api/users/<int:id>/password', methods=['PUT'])
+@admin_required
+def reset_user_password(id):
+    data = request.json
+    new_password = data.get('password')
+    
+    if not new_password:
+        return jsonify({'error': 'New password is required'}), 400
+        
+    password_hash = generate_password_hash(new_password)
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (password_hash, id))
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Password reset successfully'})
+
+@app.route('/api/users/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_user(id):
+    # Prevent admin from deleting themselves
+    if id == session.get('user_id'):
+        return jsonify({'error': 'You cannot delete your own account'}), 400
+        
+    conn = get_db_connection()
+    conn.execute('DELETE FROM users WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'User account deleted successfully'})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
