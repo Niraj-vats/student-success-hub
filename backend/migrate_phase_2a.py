@@ -49,7 +49,9 @@ def migrate():
     columns = [col[1] for col in cursor.fetchall()]
     if 'teacher_code' not in columns:
         print("Adding teacher_code to teachers table...")
-        cursor.execute("ALTER TABLE teachers ADD COLUMN teacher_code TEXT UNIQUE")
+        cursor.execute("ALTER TABLE teachers ADD COLUMN teacher_code TEXT")
+        print("Adding teacher_code index...")
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_teacher_code ON teachers(teacher_code)")
     
     # 4. Create teacher_assignments table
     cursor.execute('''
