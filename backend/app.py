@@ -317,8 +317,8 @@ def get_subjects():
     conn.close()
     return jsonify([dict(ix) for ix in subjects])
 
-@login_required
 @app.route('/api/subjects', methods=['POST'])
+@admin_required
 def add_subject():
     data = request.json
     conn = get_db_connection()
@@ -330,6 +330,7 @@ def add_subject():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'subjects', new_id, f"Admin added subject: {data['subject_name']} ({data['subject_code']})")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Subject added successfully'}), 201
     except Exception as e:
