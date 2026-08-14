@@ -260,9 +260,19 @@ def add_subject():
 def get_subject(id):
     conn = get_db_connection()
     subject = conn.execute('SELECT * FROM subjects WHERE id = ?', (id,)).fetchone()
-    conn.close()
+    
     if subject is None:
+        conn.close()
         return jsonify({'error': 'Subject not found'}), 404
+        
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        auth_subjects = get_authorized_subjects(teacher_id)
+        if id not in auth_subjects:
+            conn.close()
+            return jsonify({'error': 'Unauthorized to view this subject'}), 403
+            
+    conn.close()
     return jsonify(dict(subject))
 
 @login_required
