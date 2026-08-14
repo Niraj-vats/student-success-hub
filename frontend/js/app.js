@@ -73,6 +73,13 @@ async function fetchRecentStudents() {
         const response = await fetch(`${API_BASE_URL}/students`, { credentials: 'include' });
         const students = await response.json();
         
+        // If student role, hide enrollment table since they already have stats
+        if (sessionStorage.getItem('role') === 'Student') {
+            const tableCard = document.querySelector('.card:last-child');
+            if (tableCard) tableCard.style.display = 'none';
+            return;
+        }
+        
         const tbody = document.getElementById('recent-students');
         tbody.innerHTML = '';
         
