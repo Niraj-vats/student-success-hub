@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classes - Student Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/dist/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>Class Management</h1>
+                </div>
+                <div id="user-profile-container"></div>
+            </header>
+            <div class="content-body">
+                <div class="action-bar">
+                    <button id="add-class-btn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Class
+                    </button>
+                </div>
+                <div class="card table-card">
+                    <table id="class-table">
+                        <thead>
+                            <tr>
+                                <th>Class Name</th>
+                                <th>Department</th>
+                                <th>Semester</th>
+                                <th>Section</th>
+                                <th>Academic Year</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="class-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="class-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">Add Class</h2>
+            <form id="class-form">
+                <input type="hidden" id="class-id">
+                <div class="form-group">
+                    <label for="class-name">Class Name</label>
+                    <input type="text" id="class-name" required placeholder="e.g., CSE-6-A">
+                </div>
+                <div class="form-group">
+                    <label for="dept-select">Department</label>
+                    <select id="dept-select" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="semester">Semester</label>
+                    <input type="number" id="semester" required min="1" max="8">
+                </div>
+                <div class="form-group">
+                    <label for="section">Section</label>
+                    <input type="text" id="section" required placeholder="e.g., A">
+                </div>
+                <div class="form-group">
+                    <label for="academic-year">Academic Year</label>
+                    <input type="text" id="academic-year" required placeholder="e.g., 2026-27">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="close-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Class</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { checkAuth } from './js/auth-check.js';
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            const { initClasses } = await import('./js/classes.js');
+            initClasses();
+        });
+    </script>
+</body>
+</html>
