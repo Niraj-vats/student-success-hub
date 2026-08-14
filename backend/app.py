@@ -1353,6 +1353,10 @@ def update_teacher(id):
 def delete_teacher(id):
     conn = get_db_connection()
     try:
+        # Get name for audit
+        teacher = conn.execute('SELECT name FROM teachers WHERE id = ?', (id,)).fetchone()
+        name = teacher['name'] if teacher else "Unknown"
+        
         # Check dependencies
         assignment_ref = conn.execute('SELECT COUNT(*) FROM teacher_assignments WHERE teacher_id = ?', (id,)).fetchone()[0]
         user_ref = conn.execute('SELECT COUNT(*) FROM users WHERE teacher_id = ?', (id,)).fetchone()[0]
@@ -1363,6 +1367,7 @@ def delete_teacher(id):
             
         conn.execute('DELETE FROM teachers WHERE id = ?', (id,))
         conn.commit()
+        log_audit('DELETE', 'teachers', id, f"Admin deleted teacher {name}")
         conn.close()
         return jsonify({'message': 'Teacher deleted successfully'})
     except Exception as e:
