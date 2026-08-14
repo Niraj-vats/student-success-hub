@@ -496,12 +496,17 @@ def delete_attendance(id):
 
 # --- Dashboard API ---
 
-@login_required
 @app.route('/api/dashboard/stats', methods=['GET'])
+@login_required
 def get_dashboard_stats():
     conn = get_db_connection()
     total_students = conn.execute('SELECT COUNT(*) FROM students').fetchone()[0]
     total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
+    total_teachers = conn.execute('SELECT COUNT(*) FROM teachers').fetchone()[0]
+    total_departments = conn.execute('SELECT COUNT(*) FROM departments').fetchone()[0]
+    total_classes = conn.execute('SELECT COUNT(*) FROM classes').fetchone()[0]
+    total_users = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+    
     avg_pct = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
     
     pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE pass_fail = 'Pass'").fetchone()[0]
@@ -512,6 +517,10 @@ def get_dashboard_stats():
     return jsonify({
         'totalStudents': total_students,
         'totalSubjects': total_subjects,
+        'totalTeachers': total_teachers,
+        'totalDepartments': total_departments,
+        'totalClasses': total_classes,
+        'totalUsers': total_users,
         'averagePercentage': round(avg_pct, 2),
         'passPercentage': round(pass_pct, 2)
     })
