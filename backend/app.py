@@ -673,7 +673,17 @@ def get_student_performance(student_id):
         conn.close()
         return jsonify({'error': 'Student not found'}), 404
         
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        if not is_teacher_authorized(teacher_id, class_id=student['class_id']):
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+
     performance = calculate_student_performance(conn, student_id)
+    if not performance:
+        conn.close()
+        return jsonify({'error': 'No academic data accessible'}), 403
+        
     performance['student'] = dict(student)
     
     conn.close()
