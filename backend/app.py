@@ -584,6 +584,10 @@ def get_attendance():
         )
         params.extend(authorized_classes)
         params.extend(authorized_subjects)
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        query += " WHERE a.student_id = ?"
+        params = [student_id]
 
     attendance = conn.execute(query, params).fetchall()
     conn.close()
