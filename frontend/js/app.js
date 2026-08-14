@@ -30,6 +30,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const el = document.getElementById(id);
                 if (el) el.textContent = text;
             }
+        } else if (user.role === 'Student') {
+            // Adjust labels for Student ownership
+            const statsTitles = {
+                'total-students-title': 'Student Profile',
+                'total-subjects-title': 'My Subjects',
+                'avg-percentage-title': 'My Avg. Percentage',
+                'pass-percentage-title': 'My Pass %'
+            };
+            for (const [id, text] of Object.entries(statsTitles)) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            }
         }
         fetchDashboardStats();
         fetchRecentStudents();
