@@ -149,7 +149,7 @@ async function handleFormSubmit(e) {
     const method = markId ? 'PUT' : 'POST';
     
     try {
-        const response = await fetch(url, {
+        const response = await fetch(url, { credentials: 'include',
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -192,7 +192,7 @@ export async function deleteMarks(id) {
     if (!confirm('Are you sure you want to delete this marks record?')) return;
     
     try {
-        const response = await fetch(`${API_BASE_URL}/marks/${id}`, { method: 'DELETE' });
+        const response = await fetch(`${API_BASE_URL}/marks/${id}`, { credentials: 'include', method: 'DELETE' });
         if (response.ok) {
             fetchMarks();
         } else {

@@ -137,7 +137,7 @@ async function handleFormSubmit(e) {
     const url = id ? `${API_URL}/attendance/${id}` : `${API_URL}/attendance`;
 
     try {
-        const response = await fetch(url, {
+        const response = await fetch(url, { credentials: 'include',
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -161,7 +161,7 @@ export async function deleteAttendance(id) {
     if (!confirm('Are you sure you want to delete this attendance record?')) return;
 
     try {
-        const response = await fetch(`${API_URL}/attendance/${id}`, { method: 'DELETE' });
+        const response = await fetch(`${API_URL}/attendance/${id}`, { credentials: 'include', method: 'DELETE' });
         if (response.ok) {
             loadAttendance();
         } else {

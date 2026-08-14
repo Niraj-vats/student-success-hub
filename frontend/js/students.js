@@ -132,7 +132,7 @@ export async function editStudent(id) {
 export async function deleteStudent(id) {
     if (confirm('Are you sure you want to delete this student?')) {
         try {
-            await fetch(`${API_BASE_URL}/students/${id}`, { method: 'DELETE' });
+            await fetch(`${API_BASE_URL}/students/${id}`, { credentials: 'include', method: 'DELETE' });
             fetchStudents();
         } catch (error) {
             console.error('Error deleting student:', error);
@@ -158,7 +158,7 @@ document.getElementById('studentForm').addEventListener('submit', async (e) => {
     const url = id ? `${API_BASE_URL}/students/${id}` : `${API_BASE_URL}/students`;
     
     try {
-        const response = await fetch(url, {
+        const response = await fetch(url, { credentials: 'include',
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(studentData)

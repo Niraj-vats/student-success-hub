@@ -137,7 +137,7 @@ export async function editSubject(id) {
 export async function deleteSubject(id) {
     if (confirm('Are you sure you want to delete this subject?')) {
         try {
-            const response = await fetch(`${API_BASE_URL}/subjects/${id}`, { method: 'DELETE' });
+            const response = await fetch(`${API_BASE_URL}/subjects/${id}`, { credentials: 'include', method: 'DELETE' });
             if (response.ok) {
                 fetchSubjects();
             } else {
@@ -168,7 +168,7 @@ if (subjectForm) {
         const url = id ? `${API_BASE_URL}/subjects/${id}` : `${API_BASE_URL}/subjects`;
         
         try {
-            const response = await fetch(url, {
+            const response = await fetch(url, { credentials: 'include',
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(subjectData)

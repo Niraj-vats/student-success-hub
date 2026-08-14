@@ -26,7 +26,7 @@
 
 async function logout() {
     try {
-        await fetch('http://localhost:5000/api/auth/logout', { method: 'POST' });
+        await fetch('http://localhost:5000/api/auth/logout', { credentials: 'include', method: 'POST' });
         window.location.href = 'login.html';
     } catch (error) {
         console.error('Logout failed:', error);
