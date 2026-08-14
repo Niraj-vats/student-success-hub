@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Details - Student Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            background: #e2e8f0;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            color: #64748b;
+        }
+        .profile-info h2 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 1.8rem;
+        }
+        .profile-info p {
+            margin: 5px 0;
+            color: #64748b;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .info-card h3 {
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #64748b;
+        }
+        .info-value {
+            color: #1e293b;
+        }
+        .placeholder-box {
+            background: #f8fafc;
+            border: 2px dashed #e2e8f0;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            color: #64748b;
+            margin-top: 10px;
+        }
+        #errorMessage {
+            display: none;
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h2>SMS Portal</h2>
+        </div>
+        <ul class="nav-links">
+            <li><a href="index.html"><i class="fas fa-th-large"></i> <span>Dashboard</span></a></li>
+            <li><a href="students.html" class="active"><i class="fas fa-user-graduate"></i> <span>Students</span></a></li>
+            <li><a href="subjects.html"><i class="fas fa-book"></i> <span>Subjects</span></a></li>
+            <li><a href="marks.html"><i class="fas fa-file-invoice"></i> <span>Marks</span></a></li>
+            <li><a href="attendance.html"><i class="fas fa-calendar-check"></i> <span>Attendance</span></a></li>
+            <li><a href="performance.html"><i class="fas fa-chart-line"></i> <span>Performance</span></a></li>
+            <li><a href="results.html"><i class="fas fa-poll-h"></i> <span>Results</span></a></li>
+            <li><a href="reports.html"><i class="fas fa-file-alt"></i> <span>Reports</span></a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header>
+            <div class="page-title">
+                <a href="students.html" style="text-decoration: none; color: #64748b; font-size: 0.9rem; display: block; margin-bottom: 5px;"><i class="fas fa-arrow-left"></i> Back to Students</a>
+                <h1>Student Profile</h1>
+            </div>
+            <div id="actionButtons">
+                <!-- Actions like Edit could go here -->
+            </div>
+        </header>
+
+        <div id="errorMessage">
+            <i class="fas fa-exclamation-circle" style="font-size: 3rem; margin-bottom: 15px;"></i>
+            <h2 id="errorTitle">Oops!</h2>
+            <p id="errorText">We couldn't find the student you're looking for.</p>
+            <br>
+            <a href="students.html" class="btn btn-primary">Back to Student List</a>
+        </div>
+
+        <div id="studentContent" style="display: none;">
+            <div class="card profile-header">
+                <div class="profile-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="profile-info">
+                    <h2 id="display-name">Loading...</h2>
+                    <p id="display-id">ID: Loading...</p>
+                    <p id="display-dept-sem">Department | Semester</p>
+                </div>
+            </div>
+
+            <div class="details-grid">
+                <div class="card info-card">
+                    <h3><i class="fas fa-id-card"></i> Personal Information</h3>
+                    <div class="info-row">
+                        <span class="info-label">Student ID</span>
+                        <span class="info-value" id="val-student-id">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Roll Number</span>
+                        <span class="info-value" id="val-roll-number">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Email Address</span>
+                        <span class="info-value" id="val-email">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Phone Number</span>
+                        <span class="info-value" id="val-phone">-</span>
+                    </div>
+                </div>
+
+                <div class="card info-card">
+                    <h3><i class="fas fa-graduation-cap"></i> Academic Details</h3>
+                    <div class="info-row">
+                        <span class="info-label">Department</span>
+                        <span class="info-value" id="val-department">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Current Semester</span>
+                        <span class="info-value" id="val-semester">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Admission Status</span>
+                        <span class="info-value" style="color: #10b981; font-weight: 600;">Active</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3><i class="fas fa-chart-bar"></i> Performance & Attendance</h3>
+                <div class="placeholder-box">
+                    <i class="fas fa-tools" style="font-size: 2.5rem; margin-bottom: 15px; opacity: 0.5;"></i>
+                    <p>Marks and attendance information will appear here after the Marks and Attendance modules are implemented.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="js/student-details.js"></script>
+</body>
+</html>
