@@ -1541,10 +1541,29 @@ def delete_user(id):
         return jsonify({'error': 'You cannot delete your own account'}), 400
         
     conn = get_db_connection()
+    # Get username for audit
+    user = conn.execute('SELECT username FROM users WHERE id = ?', (id,)).fetchone()
+    username = user['username'] if user else "Unknown"
+    
     conn.execute('DELETE FROM users WHERE id = ?', (id,))
     conn.commit()
+    log_audit('DELETE', 'users', id, f"Admin deleted user account for {username}")
     conn.close()
     return jsonify({'message': 'User account deleted successfully'})
+
+# --- Audit Logs API ---
+
+@app.route('/api/audit-logs', methods=['GET'])
+@admin_required
+def get_audit_logs():
+    conn = get_db_connection()
+    logs = conn.execute('''
+        SELECT * FROM audit_logs 
+        ORDER BY timestamp DESC 
+        LIMIT 500
+    ''').fetchall()
+    conn.close()
+    return jsonify([dict(ix) for ix in logs])
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
