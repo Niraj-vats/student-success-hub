@@ -116,8 +116,15 @@
 
     <script type="module">
       import { init, loadPerformance } from './js/performance.js';
-      window.loadPerformance = loadPerformance;
-      init();
+      import { checkAuth } from './js/auth-check.js';
+      
+      document.addEventListener('DOMContentLoaded', async () => {
+          const user = await checkAuth();
+          if (user) {
+              window.loadPerformance = loadPerformance;
+              init();
+          }
+      });
     </script>
 </body>
 </html>
