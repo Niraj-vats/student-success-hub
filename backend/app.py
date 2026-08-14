@@ -1250,6 +1250,7 @@ def add_class():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'classes', new_id, f"Admin created class {data['class_name']}")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Class added successfully'}), 201
     except Exception as e:
