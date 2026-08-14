@@ -963,15 +963,31 @@ def get_attendance_summary():
     conn = get_db_connection()
     try:
         # Student-wise attendance summary
-        attendance_data = conn.execute('''
+        query = '''
             SELECT s.name, s.student_id, s.semester,
                    AVG(a.attendance_percentage) as avg_attendance,
                    SUM(CASE WHEN a.status = 'ELIGIBLE' THEN 1 ELSE 0 END) as eligible_count,
                    SUM(CASE WHEN a.status = 'SHORTAGE' THEN 1 ELSE 0 END) as shortage_count
             FROM students s
             JOIN attendance a ON s.id = a.student_id
-            GROUP BY s.id
-        ''').fetchall()
+        '''
+        params = []
+        if session.get('role') == 'Teacher':
+            teacher_id = session.get('teacher_id')
+            auth_classes = get_authorized_classes(teacher_id)
+            auth_subjects = get_authorized_subjects(teacher_id)
+            if not auth_classes:
+                conn.close()
+                return jsonify([])
+            query += " WHERE s.class_id IN ({}) AND a.subject_id IN ({})".format(
+                ','.join(['?']*len(auth_classes)),
+                ','.join(['?']*len(auth_subjects))
+            )
+            params.extend(auth_classes)
+            params.extend(auth_subjects)
+
+        query += " GROUP BY s.id"
+        attendance_data = conn.execute(query, params).fetchall()
         
         conn.close()
         return jsonify([dict(ix) for ix in attendance_data])
