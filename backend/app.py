@@ -691,8 +691,20 @@ def get_student_performance(student_id):
 
 def calculate_student_performance(conn, student_id):
     # Fetch all subjects for the student's semester to ensure we show missing data
-    student = conn.execute('SELECT semester FROM students WHERE id = ?', (student_id,)).fetchone()
-    subjects = conn.execute('SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?', (student['semester'],)).fetchall()
+    student = conn.execute('SELECT semester, class_id FROM students WHERE id = ?', (student_id,)).fetchone()
+    if not student: return None
+    
+    subjects_query = 'SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?'
+    subjects_params = [student['semester']]
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        auth_subjects = get_authorized_subjects(teacher_id, student['class_id'])
+        if not auth_subjects: return None
+        subjects_query += " AND id IN ({})".format(','.join(['?']*len(auth_subjects)))
+        subjects_params.extend(auth_subjects)
+        
+    subjects = conn.execute(subjects_query, subjects_params).fetchall()
     
     marks = conn.execute('SELECT * FROM marks WHERE student_id = ?', (student_id,)).fetchall()
     attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ?', (student_id,)).fetchall()
