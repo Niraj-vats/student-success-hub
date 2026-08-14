@@ -5,6 +5,23 @@ export async function init() {
     const response = await fetch(`${API_BASE}/students`, { credentials: 'include' });
     const students = await response.json();
     
+    // Check role
+    const role = sessionStorage.getItem('role');
+    const studentId = sessionStorage.getItem('student_id');
+
+    if (role === 'Student') {
+        // Hide selector for students
+        const selectionCard = document.getElementById('studentSelectionCard');
+        if (selectionCard) selectionCard.style.display = 'none';
+        
+        // Auto-load their own performance
+        if (students.length > 0) {
+            document.getElementById('studentSelector').value = students[0].id;
+            loadPerformance();
+        }
+        return;
+    }
+
     students.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s.id;
