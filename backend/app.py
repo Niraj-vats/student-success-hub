@@ -579,20 +579,44 @@ def delete_attendance(id):
 @login_required
 def get_dashboard_stats():
     conn = get_db_connection()
-    total_students = conn.execute('SELECT COUNT(*) FROM students').fetchone()[0]
-    total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
-    total_teachers = conn.execute('SELECT COUNT(*) FROM teachers').fetchone()[0]
-    total_departments = conn.execute('SELECT COUNT(*) FROM departments').fetchone()[0]
-    total_classes = conn.execute('SELECT COUNT(*) FROM classes').fetchone()[0]
-    total_users = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+    role = session.get('role')
     
-    avg_pct = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
-    
-    pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE pass_fail = 'Pass'").fetchone()[0]
-    total_marks_count = conn.execute("SELECT COUNT(*) FROM marks").fetchone()[0]
-    pass_pct = (pass_count / total_marks_count * 100) if total_marks_count > 0 else 0
+    if role == 'Admin':
+        total_students = conn.execute('SELECT COUNT(*) FROM students').fetchone()[0]
+        total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
+        total_teachers = conn.execute('SELECT COUNT(*) FROM teachers').fetchone()[0]
+        total_departments = conn.execute('SELECT COUNT(*) FROM departments').fetchone()[0]
+        total_classes = conn.execute('SELECT COUNT(*) FROM classes').fetchone()[0]
+        total_users = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        avg_pct = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
+        total_marks_count = conn.execute("SELECT COUNT(*) FROM marks").fetchone()[0]
+        pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE pass_fail = 'Pass'").fetchone()[0]
+    else:
+        # Teacher Stats
+        teacher_id = session.get('teacher_id')
+        auth_classes = get_authorized_classes(teacher_id)
+        auth_subjects = get_authorized_subjects(teacher_id)
+        
+        if not auth_classes:
+            conn.close()
+            return jsonify({k: 0 for k in ['totalStudents', 'totalSubjects', 'totalTeachers', 'totalDepartments', 'totalClasses', 'totalUsers', 'averagePercentage', 'passPercentage']})
 
+        # Total Students in assigned classes
+        total_students = conn.execute("SELECT COUNT(*) FROM students WHERE class_id IN ({})".format(','.join(['?']*len(auth_classes))), auth_classes).fetchone()[0]
+        total_subjects = len(auth_subjects)
+        total_teachers = 1 # Just the teacher themselves in their scoped view
+        total_departments = conn.execute("SELECT COUNT(DISTINCT department_id) FROM classes WHERE id IN ({})".format(','.join(['?']*len(auth_classes))), auth_classes).fetchone()[0]
+        total_classes = len(auth_classes)
+        total_users = 1
+        
+        # Performance in assigned subjects
+        avg_pct = conn.execute("SELECT AVG(percentage) FROM marks WHERE subject_id IN ({})".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0] or 0
+        total_marks_count = conn.execute("SELECT COUNT(*) FROM marks WHERE subject_id IN ({})".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0]
+        pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE subject_id IN ({}) AND pass_fail = 'Pass'".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0]
+
+    pass_pct = (pass_count / total_marks_count * 100) if total_marks_count > 0 else 0
     conn.close()
+    
     return jsonify({
         'totalStudents': total_students,
         'totalSubjects': total_subjects,
