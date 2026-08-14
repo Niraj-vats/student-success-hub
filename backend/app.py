@@ -1036,6 +1036,7 @@ def get_student_results(student_id):
 
 @login_required
 @app.route('/api/reports/class-summary', methods=['GET'])
+@teacher_required
 def get_class_summary():
     conn = get_db_connection()
     try:
