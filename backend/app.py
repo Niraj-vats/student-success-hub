@@ -1537,8 +1537,13 @@ def update_user_status(id):
         return jsonify({'error': 'You cannot deactivate your own account'}), 400
         
     conn = get_db_connection()
+    # Get username for audit
+    user = conn.execute('SELECT username FROM users WHERE id = ?', (id,)).fetchone()
+    username = user['username'] if user else "Unknown"
+    
     conn.execute('UPDATE users SET is_active = ? WHERE id = ?', (is_active, id))
     conn.commit()
+    log_audit('UPDATE', 'users', id, f"Admin {'activated' if is_active else 'deactivated'} user {username}")
     conn.close()
     return jsonify({'message': f"User account {'activated' if is_active else 'deactivated'} successfully"})
 
