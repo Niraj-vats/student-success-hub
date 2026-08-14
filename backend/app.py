@@ -1280,6 +1280,10 @@ def update_class(id):
 def delete_class(id):
     conn = get_db_connection()
     try:
+        # Get name for audit
+        cls = conn.execute('SELECT class_name FROM classes WHERE id = ?', (id,)).fetchone()
+        name = cls['class_name'] if cls else "Unknown"
+        
         # Check dependencies
         student_ref = conn.execute('SELECT COUNT(*) FROM students WHERE class_id = ?', (id,)).fetchone()[0]
         assignment_ref = conn.execute('SELECT COUNT(*) FROM teacher_assignments WHERE class_id = ?', (id,)).fetchone()[0]
@@ -1290,6 +1294,7 @@ def delete_class(id):
             
         conn.execute('DELETE FROM classes WHERE id = ?', (id,))
         conn.commit()
+        log_audit('DELETE', 'classes', id, f"Admin deleted class {name}")
         conn.close()
         return jsonify({'message': 'Class deleted successfully'})
     except Exception as e:
