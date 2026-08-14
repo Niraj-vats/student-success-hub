@@ -381,8 +381,8 @@ def update_subject(id):
         conn.close()
         return jsonify({'error': str(e)}), 400
 
-@login_required
 @app.route('/api/subjects/<int:id>', methods=['DELETE'])
+@admin_required
 def delete_subject(id):
     conn = get_db_connection()
     try:
@@ -396,6 +396,7 @@ def delete_subject(id):
             
         conn.execute('DELETE FROM subjects WHERE id = ?', (id,))
         conn.commit()
+        log_audit('DELETE', 'subjects', id, f"Admin deleted subject ID: {id}")
         conn.close()
         return jsonify({'message': 'Subject deleted successfully'})
     except Exception as e:
