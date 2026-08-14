@@ -949,6 +949,10 @@ def get_student_results(student_id):
         if not is_teacher_authorized(teacher_id, class_id=student['class_id']):
             conn.close()
             return jsonify({'error': 'Unauthorized'}), 403
+    elif session.get('role') == 'Student':
+        if student_id != session.get('student_id'):
+            conn.close()
+            return jsonify({'error': 'Forbidden: You can only view your own results'}), 403
 
     # Get subjects for the student's semester
     subjects_query = 'SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?'
