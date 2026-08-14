@@ -1268,6 +1268,7 @@ def update_class(id):
             (data['class_name'], data['department_id'], data['semester'], data['section'], data['academic_year'], id)
         )
         conn.commit()
+        log_audit('UPDATE', 'classes', id, f"Admin updated class {data['class_name']}")
         conn.close()
         return jsonify({'message': 'Class updated successfully'})
     except Exception as e:
