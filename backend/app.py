@@ -56,6 +56,27 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def teacher_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        role = session.get('role')
+        if role not in ['Admin', 'Teacher']:
+            return jsonify({'error': 'Forbidden: Teacher or Admin access required'}), 403
+            
+        conn = get_db_connection()
+        user = conn.execute('SELECT is_active FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        conn.close()
+        
+        if not user or not user['is_active']:
+            session.clear()
+            return jsonify({'error': 'Account is inactive'}), 403
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
 # --- Authentication API ---
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -78,13 +99,15 @@ def login():
         session['user_id'] = user['id']
         session['username'] = user['username']
         session['role'] = user['role']
+        session['teacher_id'] = user['teacher_id']
+        session['student_id'] = user['student_id']
         
         return jsonify({
             'id': user['id'],
             'username': user['username'],
             'role': user['role'],
-            'student_id': user['student_id'],
-            'teacher_id': user['teacher_id']
+            'student_id': user.get('student_id'),
+            'teacher_id': user.get('teacher_id')
         })
         
     return jsonify({'error': 'Invalid username or password'}), 401
@@ -102,7 +125,9 @@ def get_me():
     return jsonify({
         'id': session.get('user_id'),
         'username': session.get('username'),
-        'role': session.get('role')
+        'role': session.get('role'),
+        'teacher_id': session.get('teacher_id'),
+        'student_id': session.get('student_id')
     })
 
 # --- Students API ---
