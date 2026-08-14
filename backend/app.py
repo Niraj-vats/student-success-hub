@@ -1095,6 +1095,10 @@ def create_user():
     student_id = data.get('student_id')
     teacher_id = data.get('teacher_id')
     
+    # Standardize empty strings from frontend to None for DB constraints
+    if student_id == '': student_id = None
+    if teacher_id == '': teacher_id = None
+    
     if not username or not password or not role:
         return jsonify({'error': 'Username, password, and role are required'}), 400
         
