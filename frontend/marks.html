@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marks - Student Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            width: 500px;
+            max-width: 90%;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .preview-box {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .preview-item span {
+            font-weight: 600;
+            display: block;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        .preview-item div {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .modal-footer {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-pass { background: #dcfce7; color: #166534; }
+        .status-fail { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h2>SMS Portal</h2>
+        </div>
+        <ul class="nav-links">
+            <li><a href="index.html"><i class="fas fa-th-large"></i> <span>Dashboard</span></a></li>
+            <li><a href="students.html"><i class="fas fa-user-graduate"></i> <span>Students</span></a></li>
+            <li><a href="subjects.html"><i class="fas fa-book"></i> <span>Subjects</span></a></li>
+            <li><a href="marks.html" class="active"><i class="fas fa-file-invoice"></i> <span>Marks</span></a></li>
+            <li><a href="attendance.html"><i class="fas fa-calendar-check"></i> <span>Attendance</span></a></li>
+            <li><a href="performance.html"><i class="fas fa-chart-line"></i> <span>Performance</span></a></li>
+            <li><a href="results.html"><i class="fas fa-poll-h"></i> <span>Results</span></a></li>
+            <li><a href="reports.html"><i class="fas fa-file-alt"></i> <span>Reports</span></a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header>
+            <div class="page-title">
+                <h1>Marks Management</h1>
+            </div>
+            <button class="btn btn-primary" onclick="openModal()">Add Marks</button>
+        </header>
+
+        <div class="filters card" style="margin-bottom: 20px; padding: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 250px;">
+                <label>Search Marks</label>
+                <input type="text" id="searchInput" placeholder="Search by Student, Subject, ID, or Code..." oninput="filterMarks()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0; width: 150px;">
+                <label>Semester</label>
+                <select id="semFilter" onchange="filterMarks()">
+                    <option value="">All Semesters</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0; width: 150px;">
+                <label>Result Status</label>
+                <select id="statusFilter" onchange="filterMarks()">
+                    <option value="">All Status</option>
+                    <option value="Pass">Pass</option>
+                    <option value="Fail">Fail</option>
+                </select>
+            </div>
+            <button class="btn" style="background: #64748b; color: white;" onclick="clearFilters()">Clear</button>
+        </div>
+
+        <div class="card">
+            <div id="noMarksMessage" style="display: none; text-align: center; padding: 40px; color: #64748b;">
+                <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                <p>No marks records found.</p>
+            </div>
+            <table id="marksTable">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Subject</th>
+                        <th>Internal (30)</th>
+                        <th>External (70)</th>
+                        <th>Total (100)</th>
+                        <th>%</th>
+                        <th>Grade</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="marks-list">
+                    <!-- Data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Add/Edit Modal -->
+    <div id="marksModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Add Marks</h3>
+            <form id="marksForm">
+                <input type="hidden" id="markIdx">
+                <div class="form-group">
+                    <label>Student</label>
+                    <select id="student_id" required>
+                        <option value="">Select Student</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Subject</label>
+                    <select id="subject_id" required>
+                        <option value="">Select Subject</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Internal Marks (Max: 30)</label>
+                    <input type="number" id="internal_marks" required min="0" max="30" step="0.5" oninput="updatePreview()">
+                </div>
+                <div class="form-group">
+                    <label>External Marks (Max: 70)</label>
+                    <input type="number" id="external_marks" required min="0" max="70" step="0.5" oninput="updatePreview()">
+                </div>
+                
+                <div class="preview-box">
+                    <div class="preview-item">
+                        <span>Total Marks</span>
+                        <div id="previewTotal">0</div>
+                    </div>
+                    <div class="preview-item">
+                        <span>Percentage</span>
+                        <div id="previewPercentage">0%</div>
+                    </div>
+                    <div class="preview-item">
+                        <span>Grade</span>
+                        <div id="previewGrade">-</div>
+                    </div>
+                    <div class="preview-item">
+                        <span>Status</span>
+                        <div id="previewStatus">-</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Marks</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+      import { openModal, closeModal, editMarks, deleteMarks, filterMarks, clearFilters, updatePreview } from './js/marks.js';
+      window.openModal = openModal;
+      window.closeModal = closeModal;
+      window.editMarks = editMarks;
+      window.deleteMarks = deleteMarks;
+      window.filterMarks = filterMarks;
+      window.clearFilters = clearFilters;
+      window.updatePreview = updatePreview;
+    </script>
+</body>
+</html>
