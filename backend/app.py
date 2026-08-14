@@ -205,6 +205,10 @@ def get_students():
             return jsonify([])
         query += " WHERE class_id IN ({})".format(','.join(['?'] * len(authorized_classes)))
         params = authorized_classes
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        query += " WHERE id = ?"
+        params = [student_id]
         
     students = conn.execute(query, params).fetchall()
     conn.close()
