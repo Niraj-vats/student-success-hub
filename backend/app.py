@@ -492,7 +492,9 @@ def add_marks():
             INSERT INTO marks (student_id, subject_id, internal_marks, external_marks, total_marks, percentage, grade, pass_fail, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (student_id, subject_id, internal, external, total, percentage, grade, pass_fail, session.get('user_id')))
+        new_id = cursor.lastrowid
         conn.commit()
+        log_audit('CREATE', 'marks', new_id, f"User created marks for student {student_id} in subject {subject_id}")
         conn.close()
         return jsonify({'message': 'Marks added successfully'}), 201
     except Exception as e:
