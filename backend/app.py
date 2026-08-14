@@ -1558,8 +1558,13 @@ def reset_user_password(id):
         
     password_hash = generate_password_hash(new_password)
     conn = get_db_connection()
+    # Get username for audit
+    user = conn.execute('SELECT username FROM users WHERE id = ?', (id,)).fetchone()
+    username = user['username'] if user else "Unknown"
+    
     conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (password_hash, id))
     conn.commit()
+    log_audit('UPDATE', 'users', id, f"Admin reset password for user {username}")
     conn.close()
     return jsonify({'message': 'Password reset successfully'})
 
