@@ -352,6 +352,12 @@ def get_subject(id):
         if id not in auth_subjects:
             conn.close()
             return jsonify({'error': 'Unauthorized to view this subject'}), 403
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        student = conn.execute('SELECT semester FROM students WHERE id = ?', (student_id,)).fetchone()
+        if not student or subject['semester'] != student['semester']:
+            conn.close()
+            return jsonify({'error': 'Forbidden: This subject is not in your semester'}), 403
             
     conn.close()
     return jsonify(dict(subject))
