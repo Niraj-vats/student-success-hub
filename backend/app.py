@@ -363,8 +363,8 @@ def get_subject(id):
     conn.close()
     return jsonify(dict(subject))
 
-@login_required
 @app.route('/api/subjects/<int:id>', methods=['PUT'])
+@admin_required
 def update_subject(id):
     data = request.json
     conn = get_db_connection()
@@ -374,6 +374,7 @@ def update_subject(id):
             (data['subject_code'], data['subject_name'], data['semester'], data['credits'], id)
         )
         conn.commit()
+        log_audit('UPDATE', 'subjects', id, f"Admin updated subject: {data['subject_name']} ({data['subject_code']})")
         conn.close()
         return jsonify({'message': 'Subject updated successfully'})
     except Exception as e:
