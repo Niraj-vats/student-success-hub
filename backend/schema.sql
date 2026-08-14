@@ -1,3 +1,24 @@
+-- Departments table
+CREATE TABLE IF NOT EXISTS departments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    department_code TEXT UNIQUE NOT NULL,
+    department_name TEXT UNIQUE NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Classes table
+CREATE TABLE IF NOT EXISTS classes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_name TEXT NOT NULL,
+    department_id INTEGER NOT NULL,
+    semester INTEGER NOT NULL,
+    section TEXT NOT NULL,
+    academic_year TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+    UNIQUE(department_id, semester, section, academic_year)
+);
+
 -- Students table
 CREATE TABLE IF NOT EXISTS students (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -8,7 +29,9 @@ CREATE TABLE IF NOT EXISTS students (
     semester INTEGER NOT NULL,
     email TEXT UNIQUE NOT NULL,
     phone TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    class_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL
 );
 
 -- Subjects table
@@ -53,10 +76,26 @@ CREATE TABLE IF NOT EXISTS attendance (
 -- Teachers table
 CREATE TABLE IF NOT EXISTS teachers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    teacher_code TEXT UNIQUE,
     name TEXT NOT NULL,
-    department TEXT,
     email TEXT UNIQUE,
+    department TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Teacher Assignments table
+CREATE TABLE IF NOT EXISTS teacher_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    teacher_id INTEGER NOT NULL,
+    class_id INTEGER NOT NULL,
+    subject_id INTEGER NOT NULL,
+    assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    assigned_by INTEGER,
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+    FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE(teacher_id, class_id, subject_id)
 );
 
 -- Users table
