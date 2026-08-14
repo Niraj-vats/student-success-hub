@@ -788,6 +788,10 @@ def get_all_performance():
             return jsonify([])
         query += " WHERE class_id IN ({})".format(','.join(['?']*len(auth_classes)))
         params = auth_classes
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        query += " WHERE id = ?"
+        params = [student_id]
         
     students = conn.execute(query, params).fetchall()
     
