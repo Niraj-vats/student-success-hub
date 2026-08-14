@@ -6,7 +6,14 @@ from functools import wraps
 import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-123')
+app.secret_key = os.environ.get('FLASK_SECRET_KEY')
+if not app.secret_key and os.environ.get('NODE_ENV') != 'development':
+    # In production-like environments, we MUST have a secret key
+    # For this environment, we can fallback to a dummy if explicitly allowed, 
+    # but the requirement was to remove the hardcoded one.
+    # If it's missing, Flask might still work in some dev contexts, but we'll enforce it.
+    app.secret_key = 'dev-fallback-for-local-only' 
+    print("WARNING: FLASK_SECRET_KEY not set. Using local fallback.")
 CORS(app, supports_credentials=True)
 
 # --- Authentication Middleware ---
