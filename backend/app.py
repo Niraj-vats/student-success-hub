@@ -1193,6 +1193,7 @@ def update_department(id):
             (data['department_code'], data['department_name'], id)
         )
         conn.commit()
+        log_audit('UPDATE', 'departments', id, f"Admin updated department {data['department_name']}")
         conn.close()
         return jsonify({'message': 'Department updated successfully'})
     except Exception as e:
