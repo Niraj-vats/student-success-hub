@@ -1445,6 +1445,7 @@ def delete_teacher_assignment(id):
     try:
         conn.execute('DELETE FROM teacher_assignments WHERE id = ?', (id,))
         conn.commit()
+        log_audit('DELETE', 'teacher_assignments', id, "Admin deleted teacher assignment")
         conn.close()
         return jsonify({'message': 'Assignment deleted successfully'})
     except Exception as e:
