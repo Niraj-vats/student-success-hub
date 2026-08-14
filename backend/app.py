@@ -1517,8 +1517,9 @@ def create_user():
             INSERT INTO users (username, password_hash, role, student_id, teacher_id, is_active)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (username, password_hash, role, student_id, teacher_id, 1))
-        conn.commit()
         new_id = cursor.lastrowid
+        conn.commit()
+        log_audit('CREATE', 'users', new_id, f"Admin created user account {username} (Role: {role})")
         conn.close()
         return jsonify({'id': new_id, 'message': 'User created successfully'}), 201
     except Exception as e:
