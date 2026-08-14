@@ -1,12 +1,17 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 let allMarks = [];
 
-document.addEventListener('DOMContentLoaded', () => {
-    fetchMarks();
-    fetchStudents();
-    fetchSubjects();
-    
-    document.getElementById('marksForm').addEventListener('submit', handleFormSubmit);
+import { checkAuth } from './auth-check.js';
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const user = await checkAuth();
+    if (user) {
+        fetchMarks();
+        fetchStudents();
+        fetchSubjects();
+        
+        document.getElementById('marksForm').addEventListener('submit', handleFormSubmit);
+    }
 });
 
 async function fetchMarks() {

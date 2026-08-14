@@ -1,7 +1,12 @@
 const API_BASE = 'http://localhost:5000/api';
 
-document.addEventListener('DOMContentLoaded', () => {
-    init();
+import { checkAuth } from './auth-check.js';
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const user = await checkAuth();
+    if (user) {
+        init();
+    }
 });
 
 async function init() {

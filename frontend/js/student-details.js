@@ -1,6 +1,11 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
+import { checkAuth } from './auth-check.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
+    const user = await checkAuth();
+    if (!user) return;
+
     const urlParams = new URLSearchParams(window.location.search);
     const studentId = urlParams.get('id');
 
