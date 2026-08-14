@@ -238,8 +238,8 @@ def get_student(id):
     conn.close()
     return jsonify(dict(student))
 
-@login_required
 @app.route('/api/students', methods=['POST'])
+@admin_required
 def add_student():
     data = request.json
     conn = get_db_connection()
@@ -251,14 +251,15 @@ def add_student():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'students', new_id, f"Admin created student {data['name']} (ID: {data['student_id']})")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Student added successfully'}), 201
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 400
 
-@login_required
 @app.route('/api/students/<int:id>', methods=['PUT'])
+@admin_required
 def update_student(id):
     data = request.json
     conn = get_db_connection()
@@ -267,15 +268,21 @@ def update_student(id):
         (data['name'], data['roll_number'], data['department'], data['semester'], data['email'], data['phone'], id)
     )
     conn.commit()
+    log_audit('UPDATE', 'students', id, f"Admin updated student record for {data['name']}")
     conn.close()
     return jsonify({'message': 'Student updated successfully'})
 
-@login_required
 @app.route('/api/students/<int:id>', methods=['DELETE'])
+@admin_required
 def delete_student(id):
     conn = get_db_connection()
+    # Get student name before deletion for audit
+    student = conn.execute('SELECT name FROM students WHERE id = ?', (id,)).fetchone()
+    name = student['name'] if student else "Unknown"
+    
     conn.execute('DELETE FROM students WHERE id = ?', (id,))
     conn.commit()
+    log_audit('DELETE', 'students', id, f"Admin deleted student {name}")
     conn.close()
     return jsonify({'message': 'Student deleted successfully'})
 
