@@ -1,29 +1,37 @@
-# Welcome to your Lovable project
+# Student Academic & Performance Management System
 
-This project was built with [Lovable](https://lovable.dev).
+This project is a practical academic management application designed to be simple, readable, and beginner-friendly.
 
-## Build with Lovable
+## Technology Stack
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+- **Frontend:** HTML, CSS, Vanilla JavaScript
+- **Backend:** Python (Flask)
+- **Database:** SQLite
+- **Build Tool:** Vite (for frontend bundling)
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+## Project Structure
 
-## Development
+- `frontend/`: Contains the user interface files (HTML, CSS, JS).
+- `backend/`: Contains the Flask API, database interaction logic, and schema.
+- `data/`: Contains the SQLite database file.
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Features
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+1. **Dashboard:** Overview of academic statistics.
+2. **Student Management:** View, add, edit, and delete student records.
+3. **Subject Management:** Catalog of academic subjects.
 
-## Built with
+## How to Run
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+### Backend
+
+1. Install Python 3 if not already installed.
+2. Install dependencies: `pip install flask flask-cors`
+3. Run the backend: `npm run start-backend` (or `python3 backend/app.py`)
+
+### Frontend
+
+1. Install Node.js and npm.
+2. Install dependencies: `npm install`
+3. Start the development server: `npm run dev`
+4. Visit `http://localhost:8080` in your browser.
