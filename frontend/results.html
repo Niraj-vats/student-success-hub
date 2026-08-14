@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="js/auth-check.js"></script>
+    <script type="module" src="js/auth-check.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Results - Student Management System</title>
@@ -231,9 +231,15 @@
 
     <script type="module">
         import { loadStudents, loadStudentResult } from './js/results.js';
-        window.loadStudentResult = loadStudentResult;
+        import { checkAuth } from './js/auth-check.js';
         
-        document.addEventListener('DOMContentLoaded', loadStudents);
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuth();
+            if (user) {
+                window.loadStudentResult = loadStudentResult;
+                loadStudents();
+            }
+        });
     </script>
 </body>
 </html>

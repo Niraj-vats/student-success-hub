@@ -1,4 +1,11 @@
-document.addEventListener('DOMContentLoaded', fetchStudents);
+import { checkAuth } from './auth-check.js';
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const user = await checkAuth();
+    if (user) {
+        fetchStudents();
+    }
+});
 
 const API_BASE_URL = 'http://localhost:5000/api';
 let allStudents = [];

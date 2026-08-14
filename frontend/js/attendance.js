@@ -1,13 +1,18 @@
 const API_URL = 'http://localhost:5000/api';
 let allAttendance = [];
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadAttendance();
-    loadDropdowns();
+import { checkAuth } from './auth-check.js';
 
-    const form = document.getElementById('attendanceForm');
-    if (form) {
-        form.addEventListener('submit', handleFormSubmit);
+document.addEventListener('DOMContentLoaded', async () => {
+    const user = await checkAuth();
+    if (user) {
+        loadAttendance();
+        loadDropdowns();
+
+        const form = document.getElementById('attendanceForm');
+        if (form) {
+            form.addEventListener('submit', handleFormSubmit);
+        }
     }
 });
 
