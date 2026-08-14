@@ -1,13 +1,21 @@
-const API_BASE_URL = 'http://localhost:5000/api';
-
 import { checkAuth } from './auth-check.js';
+
+const API_BASE_URL = 'http://localhost:5000/api';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const user = await checkAuth();
     if (!user) return;
 
     const urlParams = new URLSearchParams(window.location.search);
-    const studentId = urlParams.get('id');
+    let studentId = urlParams.get('id');
+
+    // Security: Students can only view their own profile
+    if (user.role === 'Student') {
+        if (!studentId || parseInt(studentId) !== user.student_id) {
+            window.location.href = `student-details.html?id=${user.student_id}`;
+            return;
+        }
+    }
 
     if (!studentId) {
         showError('Missing Student ID', 'No student ID was provided in the URL.');
