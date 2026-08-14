@@ -158,9 +158,19 @@ def get_students():
 def get_student(id):
     conn = get_db_connection()
     student = conn.execute('SELECT * FROM students WHERE id = ?', (id,)).fetchone()
-    conn.close()
+    
     if student is None:
+        conn.close()
         return jsonify({'error': 'Student not found'}), 404
+        
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        auth_classes = get_authorized_classes(teacher_id)
+        if student['class_id'] not in auth_classes:
+            conn.close()
+            return jsonify({'error': 'Unauthorized to view this student'}), 403
+            
+    conn.close()
     return jsonify(dict(student))
 
 @login_required
