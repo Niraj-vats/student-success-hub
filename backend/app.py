@@ -884,32 +884,65 @@ def get_student_results(student_id):
 def get_class_summary():
     conn = get_db_connection()
     try:
-        total_students = conn.execute('SELECT COUNT(*) FROM students').fetchone()[0]
-        total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
+        # Defaults for Teacher scoping
+        student_filter = ""
+        marks_filter = ""
+        params = []
         
-        # Students with at least one mark record
-        students_with_marks = conn.execute('SELECT COUNT(DISTINCT student_id) FROM marks').fetchone()[0]
+        if session.get('role') == 'Teacher':
+            teacher_id = session.get('teacher_id')
+            auth_classes = get_authorized_classes(teacher_id)
+            auth_subjects = get_authorized_subjects(teacher_id)
+            
+            if not auth_classes:
+                conn.close()
+                return jsonify({'total_students': 0, 'total_subjects': 0, 'students_with_marks': 0, 'students_passed': 0, 'students_failed': 0, 'class_average': 0})
+            
+            student_filter = " WHERE class_id IN ({})".format(','.join(['?']*len(auth_classes)))
+            marks_filter = " WHERE subject_id IN ({})".format(','.join(['?']*len(auth_subjects)))
+            params = auth_classes
+            marks_params = auth_subjects
+
+        total_students = conn.execute('SELECT COUNT(*) FROM students' + student_filter, params).fetchone()[0]
         
-        # We define "Students Passed" as those who have marks for all subjects in their semester and none are failed.
-        # For simplicity in this beginner project, we can count students who have at least one mark and no "Fail" records.
-        # Or more accurately: students where all their marks records are 'Pass'.
-        students_passed = conn.execute('''
+        if session.get('role') == 'Teacher':
+            total_subjects = len(auth_subjects)
+        else:
+            total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
+        
+        # Marks records with scoping
+        marks_where = ""
+        if session.get('role') == 'Teacher':
+            marks_where = " WHERE m.subject_id IN ({})".format(','.join(['?']*len(auth_subjects)))
+            m_params = auth_subjects
+        else:
+            m_params = []
+
+        students_with_marks = conn.execute('SELECT COUNT(DISTINCT student_id) FROM marks m' + marks_where, m_params).fetchone()[0]
+        
+        # Scoped average
+        avg_percentage = conn.execute('SELECT AVG(percentage) FROM marks m' + marks_where, m_params).fetchone()[0] or 0
+        
+        # Scoped pass/fail
+        passed_query = '''
             SELECT COUNT(*) FROM (
-                SELECT student_id FROM marks 
+                SELECT student_id FROM marks m
+                {where}
                 GROUP BY student_id 
                 HAVING SUM(CASE WHEN pass_fail = 'Fail' THEN 1 ELSE 0 END) = 0
             )
-        ''').fetchone()[0]
+        '''.format(where=marks_where)
         
-        students_failed = conn.execute('''
+        failed_query = '''
             SELECT COUNT(*) FROM (
-                SELECT student_id FROM marks 
-                WHERE pass_fail = 'Fail'
+                SELECT student_id FROM marks m
+                {where} AND pass_fail = 'Fail'
                 GROUP BY student_id
             )
-        ''').fetchone()[0]
-        
-        avg_percentage = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
+        '''.format(where=marks_where if marks_where else "WHERE 1=1")
+
+        students_passed = conn.execute(passed_query, m_params).fetchone()[0]
+        students_failed = conn.execute(failed_query, m_params).fetchone()[0]
         
         conn.close()
         return jsonify({
