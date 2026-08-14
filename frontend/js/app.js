@@ -7,7 +7,7 @@ const API_BASE_URL = 'http://localhost:5000/api';
 
 async function fetchDashboardStats() {
     try {
-        const response = await fetch(`${API_BASE_URL}/dashboard/stats`);
+        const response = await fetch(`${API_BASE_URL}/dashboard/stats`, { credentials: 'include' });
         const data = await response.json();
         
         document.getElementById('total-students').textContent = data.totalStudents;
@@ -21,7 +21,7 @@ async function fetchDashboardStats() {
 
 async function fetchRecentStudents() {
     try {
-        const response = await fetch(`${API_BASE_URL}/students`);
+        const response = await fetch(`${API_BASE_URL}/students`, { credentials: 'include' });
         const students = await response.json();
         
         const tbody = document.getElementById('recent-students');

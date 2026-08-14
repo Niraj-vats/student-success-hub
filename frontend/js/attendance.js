@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadAttendance() {
     try {
-        const response = await fetch(`${API_URL}/attendance`);
+        const response = await fetch(`${API_URL}/attendance`, { credentials: 'include' });
         allAttendance = await response.json();
         renderAttendance(allAttendance);
     } catch (error) {
@@ -25,8 +25,8 @@ async function loadAttendance() {
 async function loadDropdowns() {
     try {
         const [studentsRes, subjectsRes] = await Promise.all([
-            fetch(`${API_URL}/students`),
-            fetch(`${API_URL}/subjects`)
+            fetch(`${API_URL}/students`, { credentials: 'include' }),
+            fetch(`${API_URL}/subjects`, { credentials: 'include' })
         ]);
         
         const students = await studentsRes.json();
@@ -99,7 +99,7 @@ export function closeModal() {
 
 export async function editAttendance(id) {
     try {
-        const response = await fetch(`${API_URL}/attendance/${id}`);
+        const response = await fetch(`${API_URL}/attendance/${id}`, { credentials: 'include' });
         const record = await response.json();
 
         document.getElementById('modalTitle').textContent = 'Edit Attendance';
@@ -137,7 +137,7 @@ async function handleFormSubmit(e) {
     const url = id ? `${API_URL}/attendance/${id}` : `${API_URL}/attendance`;
 
     try {
-        const response = await fetch(url, {
+        const response = await fetch(url, { credentials: 'include',
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -161,7 +161,7 @@ export async function deleteAttendance(id) {
     if (!confirm('Are you sure you want to delete this attendance record?')) return;
 
     try {
-        const response = await fetch(`${API_URL}/attendance/${id}`, { method: 'DELETE' });
+        const response = await fetch(`${API_URL}/attendance/${id}`, { credentials: 'include', method: 'DELETE' });
         if (response.ok) {
             loadAttendance();
         } else {

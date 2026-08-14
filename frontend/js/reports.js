@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function init() {
     try {
-        const response = await fetch(`${API_BASE}/students`);
+        const response = await fetch(`${API_BASE}/students`, { credentials: 'include' });
         const students = await response.json();
         
         const selector = document.getElementById('studentSelector');
@@ -73,7 +73,7 @@ async function generateStudentReport() {
     const studentId = document.getElementById('studentSelector').value;
     if (!studentId) throw new Error('Please select a student');
 
-    const response = await fetch(`${API_BASE}/performance/${studentId}`);
+    const response = await fetch(`${API_BASE}/performance/${studentId}`, { credentials: 'include' });
     const data = await response.json();
     
     if (data.error) throw new Error(data.error);
@@ -125,7 +125,7 @@ async function generateStudentReport() {
 }
 
 async function generateClassSummary() {
-    const response = await fetch(`${API_BASE}/reports/class-summary`);
+    const response = await fetch(`${API_BASE}/reports/class-summary`, { credentials: 'include' });
     const data = await response.json();
     
     const section = document.getElementById('classReportSection');
@@ -141,7 +141,7 @@ async function generateClassSummary() {
 
 let attendanceAllData = [];
 async function generateAttendanceSummary() {
-    const response = await fetch(`${API_BASE}/reports/attendance-summary`);
+    const response = await fetch(`${API_BASE}/reports/attendance-summary`, { credentials: 'include' });
     attendanceAllData = await response.json();
     
     const section = document.getElementById('attendanceReportSection');

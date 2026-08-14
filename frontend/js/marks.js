@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchMarks() {
     try {
-        const response = await fetch(`${API_BASE_URL}/marks`);
+        const response = await fetch(`${API_BASE_URL}/marks`, { credentials: 'include' });
         allMarks = await response.json();
         displayMarks(allMarks);
     } catch (error) {
@@ -22,7 +22,7 @@ async function fetchMarks() {
 
 async function fetchStudents() {
     try {
-        const response = await fetch(`${API_BASE_URL}/students`);
+        const response = await fetch(`${API_BASE_URL}/students`, { credentials: 'include' });
         const students = await response.json();
         const select = document.getElementById('student_id');
         select.innerHTML = '<option value="">Select Student</option>';
@@ -39,7 +39,7 @@ async function fetchStudents() {
 
 async function fetchSubjects() {
     try {
-        const response = await fetch(`${API_BASE_URL}/subjects`);
+        const response = await fetch(`${API_BASE_URL}/subjects`, { credentials: 'include' });
         const subjects = await response.json();
         const select = document.getElementById('subject_id');
         select.innerHTML = '<option value="">Select Subject</option>';
@@ -149,7 +149,7 @@ async function handleFormSubmit(e) {
     const method = markId ? 'PUT' : 'POST';
     
     try {
-        const response = await fetch(url, {
+        const response = await fetch(url, { credentials: 'include',
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -171,7 +171,7 @@ async function handleFormSubmit(e) {
 
 export async function editMarks(id) {
     try {
-        const response = await fetch(`${API_BASE_URL}/marks/${id}`);
+        const response = await fetch(`${API_BASE_URL}/marks/${id}`, { credentials: 'include' });
         const mark = await response.json();
         
         document.getElementById('modalTitle').textContent = 'Edit Marks';
@@ -192,7 +192,7 @@ export async function deleteMarks(id) {
     if (!confirm('Are you sure you want to delete this marks record?')) return;
     
     try {
-        const response = await fetch(`${API_BASE_URL}/marks/${id}`, { method: 'DELETE' });
+        const response = await fetch(`${API_BASE_URL}/marks/${id}`, { credentials: 'include', method: 'DELETE' });
         if (response.ok) {
             fetchMarks();
         } else {

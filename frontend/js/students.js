@@ -5,7 +5,7 @@ let allStudents = [];
 
 export async function fetchStudents() {
     try {
-        const response = await fetch(`${API_BASE_URL}/students`);
+        const response = await fetch(`${API_BASE_URL}/students`, { credentials: 'include' });
         allStudents = await response.json();
         
         // Populate department filter
@@ -110,7 +110,7 @@ export function closeModal() {
 
 export async function editStudent(id) {
     try {
-        const response = await fetch(`${API_BASE_URL}/students/${id}`);
+        const response = await fetch(`${API_BASE_URL}/students/${id}`, { credentials: 'include' });
         const student = await response.json();
         
         document.getElementById('modalTitle').textContent = 'Edit Student';
@@ -132,7 +132,7 @@ export async function editStudent(id) {
 export async function deleteStudent(id) {
     if (confirm('Are you sure you want to delete this student?')) {
         try {
-            await fetch(`${API_BASE_URL}/students/${id}`, { method: 'DELETE' });
+            await fetch(`${API_BASE_URL}/students/${id}`, { credentials: 'include', method: 'DELETE' });
             fetchStudents();
         } catch (error) {
             console.error('Error deleting student:', error);
@@ -158,7 +158,7 @@ document.getElementById('studentForm').addEventListener('submit', async (e) => {
     const url = id ? `${API_BASE_URL}/students/${id}` : `${API_BASE_URL}/students`;
     
     try {
-        const response = await fetch(url, {
+        const response = await fetch(url, { credentials: 'include',
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(studentData)
