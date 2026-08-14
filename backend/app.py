@@ -3,6 +3,7 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection
 from functools import wraps
+from auth_helpers import is_teacher_authorized, get_authorized_classes, get_authorized_subjects
 import os
 
 app = Flask(__name__)
