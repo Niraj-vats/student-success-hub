@@ -1403,6 +1403,7 @@ def add_teacher_assignment():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'teacher_assignments', new_id, f"Admin assigned teacher {data['teacher_id']} to class {data['class_id']} and subject {data['subject_id']}")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Teacher assigned successfully'}), 201
     except Exception as e:
