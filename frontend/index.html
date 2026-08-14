@@ -1,9 +1,12 @@
 <!-- '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
-                                        
-                                            
-                                            We are continuing development of the existing
+
+                                            Continue development of the existing
 
 "Student Academic & Performance Management System".
+
+This is the next controlled development phase:
+
+MARKS MANAGEMENT.
 
 IMPORTANT:
 
@@ -15,250 +18,523 @@ Do NOT introduce React, TypeScript, Node.js, or any new framework.
 
 KEEP EXACTLY:
 
+Frontend:
+
 - HTML
 
 - CSS
 
 - Vanilla JavaScript
 
+Backend:
+
 - Python Flask
+
+Database:
 
 - SQLite
 
-- Existing Vite development setup
+Communication:
 
-This task is ONLY to complete the STUDENT MODULE.
+HTML
 
-Do not modify Subjects, Marks, Attendance, Performance, Results, Reports, or Dashboard logic except where absolutely required to support Student Details.
+→ Vanilla JavaScript
 
-==================================================
+→ fetch()
 
-PART 1 — STUDENT SEARCH
+→ Flask API
 
-==================================================
+→ SQLite
 
-The existing students page already has a student list.
+→ JSON
 
-Implement working client-side search.
+→ JavaScript
 
-Search should work by:
+→ HTML
 
-- Student ID
+The Student and Subject modules have already been implemented and audited successfully.
 
-- Name
-
-- Roll Number
-
-- Department
-
-- Email
-
-Search should update the displayed student list immediately.
-
-If no student matches, show a clear:
-
-"No students found"
-
-message.
-
-Do not create a new backend search API.
-
-Use the students already fetched from the existing Flask API.
+Do NOT break or unnecessarily refactor them.
 
 ==================================================
 
-PART 2 — STUDENT FILTER
+CURRENT DATABASE
 
 ==================================================
 
-Add working filters for:
+An existing `marks` table is already present.
 
-- Department
+Inspect the CURRENT schema before making changes.
 
-- Semester
+Existing fields include:
 
-Filters must work together with the search field.
+- id
 
-Example:
+- student_id
 
-Search = "Computer"
+- subject_id
 
-Department = "Computer Science"
+- internal_marks
 
-Semester = "6"
+- external_marks
 
-The displayed list should satisfy all active filters.
+- total_marks
 
-Add a "Clear Filters" option.
+- percentage
 
-Do not add unnecessary filters.
+- grade
+
+- pass_fail
+
+IMPORTANT:
+
+Do not blindly duplicate derived calculations.
+
+The application must treat:
+
+internal_marks
+
+external_marks
+
+as the primary input values.
+
+The following are DERIVED values:
+
+- total_marks
+
+- percentage
+
+- grade
+
+- pass_fail
+
+Calculate them consistently using application logic.
+
+Do NOT create another marks table.
+
+Do NOT create unnecessary tables.
+
+If the existing schema can support the required functionality, preserve it.
 
 ==================================================
 
-PART 3 — STUDENT DETAILS PAGE
+PHASE GOAL
+
+==================================================
+
+Build a complete Marks Management module.
+
+Required:
+
+1. Marks list
+
+2. Add marks
+
+3. Edit marks
+
+4. Delete marks
+
+5. Automatic total calculation
+
+6. Automatic percentage calculation
+
+7. Automatic grade calculation
+
+8. Automatic PASS/FAIL calculation
+
+9. Student selection
+
+10. Subject selection
+
+11. Search/filter
+
+12. Input validation
+
+13. Duplicate prevention
+
+14. SQLite persistence
+
+15. User-friendly error handling
+
+==================================================
+
+BACKEND API
+
+==================================================
+
+Implement/verify these endpoints:
+
+GET    /api/marks
+
+GET    /api/marks/<id>
+
+POST   /api/marks
+
+PUT    /api/marks/<id>
+
+DELETE /api/marks/<id>
+
+Also use existing endpoints:
+
+GET /api/students
+
+GET /api/subjects
+
+for populating Student and Subject selection.
+
+All marks CRUD operations must use SQLite.
+
+Return JSON responses.
+
+==================================================
+
+MARKS INPUT
+
+==================================================
+
+The Add/Edit form should contain:
+
+Student
+
+Subject
+
+Internal Marks
+
+External Marks
+
+Student and Subject must be selected from existing database records.
+
+Do NOT allow users to manually enter arbitrary student IDs or subject IDs.
+
+==================================================
+
+MARK LIMITS
+
+==================================================
+
+Use a clear 100-mark structure:
+
+Internal Marks:
+
+0–30
+
+External Marks:
+
+0–70
+
+Total:
+
+0–100
+
+Reject:
+
+- negative values
+
+- values above maximum
+
+- non-numeric values
+
+- missing student
+
+- missing subject
+
+Validation should exist on both frontend and backend.
+
+==================================================
+
+CALCULATION
+
+==================================================
+
+Calculate:
+
+total_marks =
+
+internal_marks + external_marks
+
+percentage =
+
+(total_marks / 100) * 100
+
+Since the total maximum is 100, percentage will equal total marks.
+
+Do NOT hardcode the displayed result.
+
+Use calculation logic.
+
+==================================================
+
+GRADE
+
+==================================================
+
+Use this simple grading scale:
+
+90–100 → A+
+
+80–89  → A
+
+70–79  → B+
+
+60–69  → B
+
+50–59  → C
+
+40–49  → D
+
+Below 40 → F
+
+==================================================
+
+PASS / FAIL
+
+==================================================
+
+Use:
+
+percentage >= 40 → PASS
+
+percentage < 40 → FAIL
+
+Keep the logic simple and easy to explain.
+
+==================================================
+
+DUPLICATE PREVENTION
+
+==================================================
+
+A student should have only one marks record for a particular subject.
+
+Before inserting:
+
+Check whether a marks record already exists for:
+
+student_id + subject_id
+
+If it exists:
+
+- Do not create a duplicate
+
+- Return a clear error
+
+- Tell the user to edit the existing marks
+
+Also handle this safely on the backend.
+
+==================================================
+
+MARKS LIST
 
 ==================================================
 
 Create:
 
-frontend/student-details.html
+frontend/marks.html
 
-When the user clicks "View" for a student:
+and:
 
-Navigate to:
-
-student-details.html?id=<student_id>
-
-The page should fetch the selected student using the existing Flask endpoint:
-
-GET /api/students/<id>
+frontend/js/marks.js
 
 Display:
 
-### Student Profile
+- Student Name
 
-- Name
+- Subject Name
+
+- Internal
+
+- External
+
+- Total
+
+- Percentage
+
+- Grade
+
+- PASS/FAIL
+
+- Actions
+
+Actions:
+
+- Edit
+
+- Delete
+
+==================================================
+
+SEARCH & FILTER
+
+==================================================
+
+Implement simple client-side filtering using fetched marks data.
+
+Search by:
+
+- Student Name
 
 - Student ID
 
-- Roll Number
+- Subject Name
 
-- Department
+- Subject Code
+
+Filters:
 
 - Semester
 
-- Email
+- Result Status (PASS / FAIL)
 
-- Phone
+Search and filters should work together.
 
-### Academic Summary
+Add:
 
-For now, display the student's basic academic section using available data.
+"Clear Filters"
 
-Do NOT create fake marks or attendance calculations on this page yet.
+Show:
 
-Marks and attendance integration will be implemented in later phases.
+"No marks found"
 
-Show a clear placeholder such as:
-
-"Marks and attendance information will appear here after the Marks and Attendance modules are implemented."
-
-Do not create the Marks or Attendance modules in this task.
+when appropriate.
 
 ==================================================
 
-PART 4 — NAVIGATION
+ADD MARKS
 
 ==================================================
 
-Add a working "View" action from the Students table.
+Create a clean modal/form.
 
-The View action should open the correct Student Details page using the student's database ID.
+Fields:
 
-Add a "Back to Students" button on the Student Details page.
+Student dropdown
 
-==================================================
+Subject dropdown
 
-PART 5 — ERROR HANDLING
+Internal Marks
 
-==================================================
+External Marks
 
-If:
+When values are entered, show a preview:
 
-- student ID is missing
+Total
 
-- student does not exist
+Percentage
 
-- API request fails
+Grade
 
-show a user-friendly error message.
+Status
 
-Do not expose raw Python/SQLite errors to the user.
+before submission.
 
-==================================================
+The preview is only for user feedback.
 
-PART 6 — DATA SOURCE
-
-==================================================
-
-IMPORTANT:
-
-The frontend must continue using the Flask API.
-
-Do NOT import hardcoded student data.
-
-The flow must remain:
-
-Students page
-
-↓
-
-fetch()
-
-↓
-
-python
-Flask API
-
-↓
-
-SQLite
-
-↓
-
-JSON
-
-↓
-
-JavaScript
-
-↓
-
-HTML
-
-Student Details must use the existing:
-
-GET /api/students/<id>
-
-endpoint.
+The backend must independently calculate and validate the final values.
 
 ==================================================
 
-PART 7 — PRESERVE EXISTING FUNCTIONALITY
+EDIT MARKS
 
 ==================================================
 
-Do not break:
+Click Edit.
 
-- Student list
+Load existing record.
 
-- Add Student
+Allow changing:
 
-- Edit Student
+- Student
 
-- Delete Student
+- Subject
 
-- Dashboard
+- Internal Marks
 
-- Existing Subject functionality
+- External Marks
 
-Do not change the database schema.
+Prevent duplicate student + subject combinations.
 
-Do not change existing Flask routes unless absolutely necessary.
+Recalculate all derived values.
 
-Do not install new dependencies.
+Save through:
 
-==================================================
-
-UI REQUIREMENTS
+PUT /api/marks/<id>
 
 ==================================================
 
-Keep the existing visual design.
+DELETE MARKS
 
-Student Details should be clean and professional.
+==================================================
 
-Use existing CSS patterns where possible.
+Ask for confirmation.
+
+Then:
+
+DELETE /api/marks/<id>
+
+Refresh the list.
+
+Show a clear error if deletion fails.
+
+==================================================
+
+ERROR HANDLING
+
+==================================================
+
+Handle:
+
+- missing student
+
+- missing subject
+
+- invalid marks
+
+- duplicate marks
+
+- record not found
+
+- database error
+
+- network/API failure
+
+Do not expose raw Python or SQLite errors to the user.
+
+==================================================
+
+DATABASE INTEGRITY
+
+==================================================
+
+Use the existing foreign-key relationships:
+
+marks.student_id → students.id
+
+marks.subject_id → subjects.id
+
+Do not allow marks for a non-existent student or subject.
+
+==================================================
+
+UI
+
+==================================================
+
+Match the existing Student and Subject pages.
+
+Use:
+
+- existing sidebar
+
+- existing header
+
+- existing cards
+
+- existing table styles
+
+- existing modal patterns
+
+- existing CSS
 
 Responsive:
 
@@ -272,29 +548,47 @@ Do not introduce a UI framework.
 
 ==================================================
 
+DASHBOARD
+
+==================================================
+
+Do NOT redesign the Dashboard in this phase.
+
+If the existing dashboard statistics can naturally continue working with the marks table, preserve them.
+
+Do not add performance charts yet.
+
+Performance will be a separate later phase.
+
+==================================================
+
 IMPORTANT SCOPE LIMIT
 
 ==================================================
 
 ONLY implement:
 
-1. Student search
+- Marks CRUD
 
-2. Department filter
+- Marks calculation
 
-3. Semester filter
+- Grade
 
-4. Clear filters
+- Pass/Fail
 
-5. Student Details page
+- Search
 
-6. View navigation
+- Filters
 
-7. Basic error handling
+- Validation
+
+- Duplicate prevention
+
+- SQLite persistence
+
+- Basic error handling
 
 DO NOT implement:
-
-- Marks
 
 - Attendance
 
@@ -306,23 +600,63 @@ DO NOT implement:
 
 - Authentication
 
-- New database tables
+- Advanced analytics
 
 - New frameworks
 
-After completing this task, provide a concise summary of:
+- New database tables unless absolutely necessary
+
+==================================================
+
+PRESERVE EXISTING MODULES
+
+==================================================
+
+Do not break:
+
+- Dashboard
+
+- Student CRUD
+
+- Student Search
+
+- Student Filters
+
+- Student Details
+
+- Subject CRUD
+
+- Subject Search
+
+- Subject Filters
+
+==================================================
+
+AFTER IMPLEMENTATION
+
+==================================================
+
+Provide a concise summary of:
 
 - Files created
 
 - Files modified
 
-- Flask routes used
+- Flask endpoints implemented
 
-- Student features now working
+- Marks calculations
 
-- Any known limitations
+- Validation
 
-Do not make additional improvements outside this scope. -->
+- Duplicate prevention
+
+- Any limitations
+
+Do NOT claim something is working merely because code was created.
+
+We will perform a separate READ-ONLY audit after implementation.
+
+Do not make changes outside this scope. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
