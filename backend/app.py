@@ -716,7 +716,7 @@ def get_dashboard_stats():
         avg_pct = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
         total_marks_count = conn.execute("SELECT COUNT(*) FROM marks").fetchone()[0]
         pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE pass_fail = 'Pass'").fetchone()[0]
-    else:
+    elif role == 'Teacher':
         # Teacher Stats
         teacher_id = session.get('teacher_id')
         auth_classes = get_authorized_classes(teacher_id)
@@ -738,6 +738,24 @@ def get_dashboard_stats():
         avg_pct = conn.execute("SELECT AVG(percentage) FROM marks WHERE subject_id IN ({})".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0] or 0
         total_marks_count = conn.execute("SELECT COUNT(*) FROM marks WHERE subject_id IN ({})".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0]
         pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE subject_id IN ({}) AND pass_fail = 'Pass'".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0]
+    elif role == 'Student':
+        student_id = session.get('student_id')
+        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+        
+        total_students = 1
+        total_subjects = conn.execute('SELECT COUNT(*) FROM subjects WHERE semester = ?', (student['semester'],)).fetchone()[0]
+        total_teachers = conn.execute('''
+            SELECT COUNT(DISTINCT ta.teacher_id) 
+            FROM teacher_assignments ta 
+            WHERE ta.class_id = ?
+        ''', (student['class_id'],)).fetchone()[0]
+        total_departments = 1
+        total_classes = 1
+        total_users = 1
+        
+        avg_pct = conn.execute('SELECT AVG(percentage) FROM marks WHERE student_id = ?', (student_id,)).fetchone()[0] or 0
+        total_marks_count = conn.execute("SELECT COUNT(*) FROM marks WHERE student_id = ?", (student_id,)).fetchone()[0]
+        pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE student_id = ? AND pass_fail = 'Pass'", (student_id,)).fetchone()[0]
 
     pass_pct = (pass_count / total_marks_count * 100) if total_marks_count > 0 else 0
     conn.close()
