@@ -820,6 +820,43 @@ def add_department():
         conn.close()
         return jsonify({'error': str(e)}), 400
 
+@app.route('/api/departments/<int:id>', methods=['PUT'])
+@admin_required
+def update_department(id):
+    data = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE departments SET department_code=?, department_name=? WHERE id=?",
+            (data['department_code'], data['department_name'], id)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Department updated successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/departments/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_department(id):
+    conn = get_db_connection()
+    try:
+        # Check dependencies
+        classes_ref = conn.execute('SELECT COUNT(*) FROM classes WHERE department_id = ?', (id,)).fetchone()[0]
+        if classes_ref > 0:
+            conn.close()
+            return jsonify({'error': 'Cannot delete department: classes are linked to it.'}), 400
+            
+        conn.execute('DELETE FROM departments WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Department deleted successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+
 @app.route('/api/classes', methods=['GET'])
 @login_required
 def get_classes():
@@ -851,6 +888,45 @@ def add_class():
         conn.close()
         return jsonify({'error': str(e)}), 400
 
+@app.route('/api/classes/<int:id>', methods=['PUT'])
+@admin_required
+def update_class(id):
+    data = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE classes SET class_name=?, department_id=?, semester=?, section=?, academic_year=? WHERE id=?",
+            (data['class_name'], data['department_id'], data['semester'], data['section'], data['academic_year'], id)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Class updated successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/classes/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_class(id):
+    conn = get_db_connection()
+    try:
+        # Check dependencies
+        student_ref = conn.execute('SELECT COUNT(*) FROM students WHERE class_id = ?', (id,)).fetchone()[0]
+        assignment_ref = conn.execute('SELECT COUNT(*) FROM teacher_assignments WHERE class_id = ?', (id,)).fetchone()[0]
+        
+        if student_ref > 0 or assignment_ref > 0:
+            conn.close()
+            return jsonify({'error': 'Cannot delete class: students or teacher assignments are linked to it.'}), 400
+            
+        conn.execute('DELETE FROM classes WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Class deleted successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+
 @app.route('/api/teachers', methods=['GET'])
 @login_required
 def get_teachers():
@@ -877,6 +953,45 @@ def add_teacher():
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 400
+
+@app.route('/api/teachers/<int:id>', methods=['PUT'])
+@admin_required
+def update_teacher(id):
+    data = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE teachers SET teacher_code=?, name=?, email=?, department=? WHERE id=?",
+            (data['teacher_code'], data['name'], data['email'], data['department'], id)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Teacher updated successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/teachers/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_teacher(id):
+    conn = get_db_connection()
+    try:
+        # Check dependencies
+        assignment_ref = conn.execute('SELECT COUNT(*) FROM teacher_assignments WHERE teacher_id = ?', (id,)).fetchone()[0]
+        user_ref = conn.execute('SELECT COUNT(*) FROM users WHERE teacher_id = ?', (id,)).fetchone()[0]
+        
+        if assignment_ref > 0 or user_ref > 0:
+            conn.close()
+            return jsonify({'error': 'Cannot delete teacher: assignments or user accounts are linked to it.'}), 400
+            
+        conn.execute('DELETE FROM teachers WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Teacher deleted successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
 
 @app.route('/api/teacher-assignments', methods=['GET'])
 @login_required
