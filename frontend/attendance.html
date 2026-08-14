@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance - Student Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            width: 500px;
+            max-width: 90%;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .modal-footer {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .preview-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .preview-item {
+            font-size: 0.9rem;
+        }
+        .preview-label {
+            color: #64748b;
+            margin-bottom: 2px;
+        }
+        .preview-value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h2>SMS Portal</h2>
+        </div>
+        <ul class="nav-links">
+            <li><a href="index.html"><i class="fas fa-th-large"></i> <span>Dashboard</span></a></li>
+            <li><a href="students.html"><i class="fas fa-user-graduate"></i> <span>Students</span></a></li>
+            <li><a href="subjects.html"><i class="fas fa-book"></i> <span>Subjects</span></a></li>
+            <li><a href="marks.html"><i class="fas fa-file-invoice"></i> <span>Marks</span></a></li>
+            <li><a href="attendance.html" class="active"><i class="fas fa-calendar-check"></i> <span>Attendance</span></a></li>
+            <li><a href="performance.html"><i class="fas fa-chart-line"></i> <span>Performance</span></a></li>
+            <li><a href="results.html"><i class="fas fa-poll-h"></i> <span>Results</span></a></li>
+            <li><a href="reports.html"><i class="fas fa-file-alt"></i> <span>Reports</span></a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header>
+            <div class="page-title">
+                <h1>Attendance Management</h1>
+            </div>
+            <button class="btn btn-primary" onclick="openModal()">Add Attendance</button>
+        </header>
+
+        <div class="filters card" style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+                <label>Search Attendance</label>
+                <input type="text" id="searchInput" placeholder="Search by Student or Subject..." oninput="filterAttendance()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0; width: 150px;">
+                <label>Semester</label>
+                <select id="semFilter" onchange="filterAttendance()">
+                    <option value="">All Semesters</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0; width: 150px;">
+                <label>Status</label>
+                <select id="statusFilter" onchange="filterAttendance()">
+                    <option value="">All Status</option>
+                    <option value="ELIGIBLE">ELIGIBLE</option>
+                    <option value="SHORTAGE">SHORTAGE</option>
+                </select>
+            </div>
+            <button class="btn" style="background: #64748b; color: white;" onclick="clearFilters()">Clear</button>
+        </div>
+
+        <div class="card">
+            <div id="noAttendanceMessage" style="display: none; text-align: center; padding: 40px; color: #64748b;">
+                <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                <p>No attendance records found.</p>
+            </div>
+            <table id="attendanceTable">
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Student Name</th>
+                        <th>Subject Name</th>
+                        <th>Total Classes</th>
+                        <th>Attended</th>
+                        <th>Percentage</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="attendance-list">
+                    <!-- Data loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div id="attendanceModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Add Attendance</h3>
+            <form id="attendanceForm">
+                <input type="hidden" id="recordId">
+                <div class="form-group">
+                    <label>Student</label>
+                    <select id="student_id" required>
+                        <option value="">Select Student</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Subject</label>
+                    <select id="subject_id" required>
+                        <option value="">Select Subject</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Total Classes</label>
+                    <input type="number" id="total_classes" required min="1" oninput="updatePreview()">
+                </div>
+                <div class="form-group">
+                    <label>Attended Classes</label>
+                    <input type="number" id="attended_classes" required min="0" oninput="updatePreview()">
+                </div>
+
+                <div class="preview-box">
+                    <div class="preview-grid">
+                        <div class="preview-item">
+                            <div class="preview-label">Attendance Percentage</div>
+                            <div id="previewPercentage" class="preview-value">-</div>
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-label">Status</div>
+                            <div id="previewStatus" class="preview-value">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Attendance</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { openModal, closeModal, updatePreview, filterAttendance, clearFilters, deleteAttendance, editAttendance } from './js/attendance.js';
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.updatePreview = updatePreview;
+        window.filterAttendance = filterAttendance;
+        window.clearFilters = clearFilters;
+        window.deleteAttendance = deleteAttendance;
+        window.editAttendance = editAttendance;
+    </script>
+</body>
+</html>

@@ -1,12 +1,13 @@
-<!-- '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
-
+<!-- Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.
+                                        
+                                            
                                             Continue development of the existing
 
 "Student Academic & Performance Management System".
 
 This is the next controlled development phase:
 
-MARKS MANAGEMENT.
+ATTENDANCE MANAGEMENT.
 
 IMPORTANT:
 
@@ -52,7 +53,7 @@ HTML
 
 → HTML
 
-The Student and Subject modules have already been implemented and audited successfully.
+Student, Subject, and Marks modules have already been implemented and audited successfully.
 
 Do NOT break or unnecessarily refactor them.
 
@@ -62,11 +63,11 @@ CURRENT DATABASE
 
 ==================================================
 
-An existing `marks` table is already present.
+An existing `attendance` table already exists.
 
-Inspect the CURRENT schema before making changes.
+Inspect the CURRENT schema before implementation.
 
-Existing fields include:
+Expected fields include:
 
 - id
 
@@ -74,47 +75,17 @@ Existing fields include:
 
 - subject_id
 
-- internal_marks
+- total_classes
 
-- external_marks
+- attended_classes
 
-- total_marks
+- attendance_percentage
 
-- percentage
+- status
 
-- grade
+Do NOT create another attendance table.
 
-- pass_fail
-
-IMPORTANT:
-
-Do not blindly duplicate derived calculations.
-
-The application must treat:
-
-internal_marks
-
-external_marks
-
-as the primary input values.
-
-The following are DERIVED values:
-
-- total_marks
-
-- percentage
-
-- grade
-
-- pass_fail
-
-Calculate them consistently using application logic.
-
-Do NOT create another marks table.
-
-Do NOT create unnecessary tables.
-
-If the existing schema can support the required functionality, preserve it.
+Preserve the existing database structure if it is sufficient.
 
 ==================================================
 
@@ -122,39 +93,35 @@ PHASE GOAL
 
 ==================================================
 
-Build a complete Marks Management module.
+Build a complete Attendance Management module.
 
 Required:
 
-1. Marks list
+1. Attendance list
 
-2. Add marks
+2. Add attendance
 
-3. Edit marks
+3. Edit attendance
 
-4. Delete marks
+4. Delete attendance
 
-5. Automatic total calculation
+5. Automatic attendance percentage
 
-6. Automatic percentage calculation
+6. Automatic attendance status
 
-7. Automatic grade calculation
+7. Student selection
 
-8. Automatic PASS/FAIL calculation
+8. Subject selection
 
-9. Student selection
+9. Search/filter
 
-10. Subject selection
+10. Input validation
 
-11. Search/filter
+11. Duplicate prevention
 
-12. Input validation
+12. SQLite persistence
 
-13. Duplicate prevention
-
-14. SQLite persistence
-
-15. User-friendly error handling
+13. User-friendly error handling
 
 ==================================================
 
@@ -162,83 +129,91 @@ BACKEND API
 
 ==================================================
 
-Implement/verify these endpoints:
+Implement/verify:
 
-GET    /api/marks
+GET    /api/attendance
 
-GET    /api/marks/<id>
+GET    /api/attendance/<id>
 
-POST   /api/marks
+POST   /api/attendance
 
-PUT    /api/marks/<id>
+PUT    /api/attendance/<id>
 
-DELETE /api/marks/<id>
+DELETE /api/attendance/<id>
 
-Also use existing endpoints:
+Use existing:
 
 GET /api/students
 
 GET /api/subjects
 
-for populating Student and Subject selection.
+to populate student and subject dropdowns.
 
-All marks CRUD operations must use SQLite.
+All attendance CRUD operations must use SQLite.
 
 Return JSON responses.
 
 ==================================================
 
-MARKS INPUT
+ATTENDANCE INPUT
 
 ==================================================
 
-The Add/Edit form should contain:
+Form fields:
 
 Student
 
 Subject
 
-Internal Marks
+Total Classes
 
-External Marks
+Attended Classes
 
-Student and Subject must be selected from existing database records.
+Student and Subject MUST be selected from actual database records.
 
-Do NOT allow users to manually enter arbitrary student IDs or subject IDs.
-
-==================================================
-
-MARK LIMITS
+Do NOT allow arbitrary student IDs or subject IDs.
 
 ==================================================
 
-Use a clear 100-mark structure:
+VALIDATION
 
-Internal Marks:
+==================================================
 
-0–30
+Implement validation on BOTH frontend and backend.
 
-External Marks:
+Rules:
 
-0–70
+Total Classes:
 
-Total:
+- Must be a positive integer
 
-0–100
+- Must be greater than 0
+
+Attended Classes:
+
+- Must be an integer
+
+- Must be >= 0
+
+- Must NOT exceed Total Classes
 
 Reject:
 
-- negative values
+- Total Classes = 0
 
-- values above maximum
+- Negative values
 
-- non-numeric values
+- Decimal values
 
-- missing student
+- Attended Classes > Total Classes
 
-- missing subject
+- Missing student
 
-Validation should exist on both frontend and backend.
+- Missing subject
+
+- Invalid student ID
+
+- Invalid subject ID
 
 ==================================================
 
@@ -246,57 +221,37 @@ CALCULATION
 
 ==================================================
 
-Calculate:
+Calculate attendance percentage on the BACKEND.
 
-total_marks =
+Formula:
 
-internal_marks + external_marks
+attendance_percentage =
 
-percentage =
+(attended_classes / total_classes) * 100
 
-(total_marks / 100) * 100
+Round to a maximum of 2 decimal places.
 
-Since the total maximum is 100, percentage will equal total marks.
+Do NOT trust a percentage supplied by the frontend.
 
-Do NOT hardcode the displayed result.
-
-Use calculation logic.
+Frontend may show a live preview, but backend must independently calculate the final value.
 
 ==================================================
 
-GRADE
+ATTENDANCE STATUS
 
 ==================================================
 
-Use this simple grading scale:
+Use this simple rule:
 
-90–100 → A+
+attendance_percentage >= 75
 
-80–89  → A
+→ "ELIGIBLE"
 
-70–79  → B+
+attendance_percentage < 75
 
-60–69  → B
+→ "SHORTAGE"
 
-50–59  → C
-
-40–49  → D
-
-Below 40 → F
-
-==================================================
-
-PASS / FAIL
-
-==================================================
-
-Use:
-
-percentage >= 40 → PASS
-
-percentage < 40 → FAIL
-
-Keep the logic simple and easy to explain.
+Keep the rule simple and easy to explain.
 
 ==================================================
 
@@ -304,55 +259,61 @@ DUPLICATE PREVENTION
 
 ==================================================
 
-A student should have only one marks record for a particular subject.
+A student should have only one attendance record for a particular subject.
 
-Before inserting:
-
-Check whether a marks record already exists for:
+Prevent duplicate:
 
 student_id + subject_id
 
-If it exists:
+Use BOTH:
 
-- Do not create a duplicate
+1. Backend duplicate check
 
-- Return a clear error
+2. Database-level UNIQUE constraint if the existing schema allows it
 
-- Tell the user to edit the existing marks
+Do not create duplicate attendance records.
 
-Also handle this safely on the backend.
+Example:
+
+Student A + Subject A → allowed once
+
+Student A + Subject A again → rejected
+
+Student A + Subject B → allowed
+
+Student B + Subject A → allowed
 
 ==================================================
 
-MARKS LIST
+ATTENDANCE LIST
 
 ==================================================
 
 Create:
 
-frontend/marks.html
+frontend/attendance.html
 
 and:
 
-frontend/js/marks.js
+frontend/js/attendance.js
 
 Display:
 
 - Student Name
 
+- Student ID
+
 - Subject Name
 
-- Internal
+- Subject Code
 
-- External
+- Total Classes
 
-- Total
+- Attended Classes
 
-- Percentage
+- Attendance %
 
-- Grade
-
-- PASS/FAIL
+- Status
 
 - Actions
 
@@ -368,7 +329,7 @@ SEARCH & FILTER
 
 ==================================================
 
-Implement simple client-side filtering using fetched marks data.
+Implement client-side filtering using fetched attendance data.
 
 Search by:
 
@@ -384,9 +345,9 @@ Filters:
 
 - Semester
 
-- Result Status (PASS / FAIL)
+- Status (ELIGIBLE / SHORTAGE)
 
-Search and filters should work together.
+Search and filters must work together.
 
 Add:
 
@@ -394,17 +355,17 @@ Add:
 
 Show:
 
-"No marks found"
+"No attendance records found"
 
-when appropriate.
-
-==================================================
-
-ADD MARKS
+when there are no matching records.
 
 ==================================================
 
-Create a clean modal/form.
+ADD ATTENDANCE
+
+==================================================
+
+Create a modal/form.
 
 Fields:
 
@@ -412,35 +373,29 @@ Student dropdown
 
 Subject dropdown
 
-Internal Marks
+Total Classes
 
-External Marks
+Attended Classes
 
-When values are entered, show a preview:
+When the user enters values, show a live preview:
 
-Total
-
-Percentage
-
-Grade
+Attendance %
 
 Status
 
-before submission.
-
 The preview is only for user feedback.
 
-The backend must independently calculate and validate the final values.
+The backend remains authoritative.
 
 ==================================================
 
-EDIT MARKS
+EDIT ATTENDANCE
 
 ==================================================
 
 Click Edit.
 
-Load existing record.
+Load the existing record.
 
 Allow changing:
 
@@ -448,21 +403,25 @@ Allow changing:
 
 - Subject
 
-- Internal Marks
+- Total Classes
 
-- External Marks
+- Attended Classes
+
+Recalculate:
+
+- Attendance %
+
+- Status
 
 Prevent duplicate student + subject combinations.
 
-Recalculate all derived values.
-
 Save through:
 
-PUT /api/marks/<id>
+PUT /api/attendance/<id>
 
 ==================================================
 
-DELETE MARKS
+DELETE ATTENDANCE
 
 ==================================================
 
@@ -470,9 +429,9 @@ Ask for confirmation.
 
 Then:
 
-DELETE /api/marks/<id>
+DELETE /api/attendance/<id>
 
-Refresh the list.
+Refresh the list after successful deletion.
 
 Show a clear error if deletion fails.
 
@@ -484,21 +443,23 @@ ERROR HANDLING
 
 Handle:
 
-- missing student
+- Missing student
 
-- missing subject
+- Missing subject
 
-- invalid marks
+- Invalid classes
 
-- duplicate marks
+- Attended > total
 
-- record not found
+- Duplicate attendance
 
-- database error
+- Record not found
 
-- network/API failure
+- Database error
 
-Do not expose raw Python or SQLite errors to the user.
+- API/network failure
+
+Do not expose raw Python/SQLite errors to users.
 
 ==================================================
 
@@ -506,13 +467,15 @@ DATABASE INTEGRITY
 
 ==================================================
 
-Use the existing foreign-key relationships:
+Use existing relationships:
 
-marks.student_id → students.id
+attendance.student_id → students.id
 
-marks.subject_id → subjects.id
+attendance.subject_id → subjects.id
 
-Do not allow marks for a non-existent student or subject.
+Do not allow attendance records for non-existent students or subjects.
+
+If the existing schema already has foreign keys, preserve them.
 
 ==================================================
 
@@ -520,21 +483,23 @@ UI
 
 ==================================================
 
-Match the existing Student and Subject pages.
+Match the existing Student, Subject, and Marks modules.
 
-Use:
+Reuse:
 
-- existing sidebar
+- Sidebar
 
-- existing header
+- Header
 
-- existing cards
+- Cards
 
-- existing table styles
+- Tables
 
-- existing modal patterns
+- Buttons
 
-- existing CSS
+- Modal patterns
+
+- Existing CSS
 
 Responsive:
 
@@ -552,13 +517,11 @@ DASHBOARD
 
 ==================================================
 
-Do NOT redesign the Dashboard in this phase.
+Do NOT redesign the dashboard.
 
-If the existing dashboard statistics can naturally continue working with the marks table, preserve them.
+Do not add advanced attendance analytics yet.
 
-Do not add performance charts yet.
-
-Performance will be a separate later phase.
+Performance/analytics will be handled in a later phase.
 
 ==================================================
 
@@ -568,13 +531,11 @@ IMPORTANT SCOPE LIMIT
 
 ONLY implement:
 
-- Marks CRUD
+- Attendance CRUD
 
-- Marks calculation
+- Attendance calculation
 
-- Grade
-
-- Pass/Fail
+- Attendance status
 
 - Search
 
@@ -586,11 +547,9 @@ ONLY implement:
 
 - SQLite persistence
 
-- Basic error handling
+- Error handling
 
 DO NOT implement:
-
-- Attendance
 
 - Performance
 
@@ -604,7 +563,7 @@ DO NOT implement:
 
 - New frameworks
 
-- New database tables unless absolutely necessary
+- New unnecessary database tables
 
 ==================================================
 
@@ -620,15 +579,15 @@ Do not break:
 
 - Student Search
 
-- Student Filters
-
 - Student Details
 
 - Subject CRUD
 
 - Subject Search
 
-- Subject Filters
+- Marks CRUD
+
+- Marks calculations
 
 ==================================================
 
@@ -642,9 +601,9 @@ Provide a concise summary of:
 
 - Files modified
 
-- Flask endpoints implemented
+- Flask endpoints
 
-- Marks calculations
+- Attendance calculations
 
 - Validation
 
