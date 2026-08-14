@@ -600,6 +600,9 @@ def add_attendance():
     student_id = data.get('student_id')
     subject_id = data.get('subject_id')
     
+    if session.get('role') == 'Student':
+        return jsonify({'error': 'Forbidden: Students cannot add attendance'}), 403
+        
     if session.get('role') == 'Teacher':
         teacher_id = session.get('teacher_id')
         conn = get_db_connection()
