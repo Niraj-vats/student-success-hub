@@ -20,7 +20,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             for (const [id, text] of Object.entries(statsTitles)) {
                 const el = document.getElementById(id);
                 if (el) el.textContent = text;
-            }
+        } else if (user.role === 'Student') {
+            sessionStorage.setItem('student_id', user.student_id);
+            // Dynamic relabeling for Student Dashboard
+            document.getElementById('total-students-title').textContent = 'My Profile';
+            document.getElementById('total-students').textContent = 'VIEW';
+            document.getElementById('total-students').parentElement.onclick = () => window.location.href = `student-details.html?id=${user.student_id}`;
+            document.getElementById('total-students').parentElement.style.cursor = 'pointer';
+
+            document.getElementById('total-subjects-title').textContent = 'My Subjects';
+            document.getElementById('total-subjects').parentElement.onclick = () => window.location.href = 'subjects.html';
+            document.getElementById('total-subjects').parentElement.style.cursor = 'pointer';
+            
+            document.getElementById('avg-percentage-title').textContent = 'My Attendance';
+            document.getElementById('avg-percentage').parentElement.onclick = () => window.location.href = 'attendance.html';
+            document.getElementById('avg-percentage').parentElement.style.cursor = 'pointer';
+
+            document.getElementById('pass-percentage-title').textContent = 'My Results';
+            document.getElementById('pass-percentage').parentElement.onclick = () => window.location.href = 'results.html';
+            document.getElementById('pass-percentage').parentElement.style.cursor = 'pointer';
+        } else {
+            sessionStorage.setItem('student_id', '');
+        }
         } else if (user.role === 'Teacher') {
             // Adjust labels for Teacher scoping
             const statsTitles = {
