@@ -136,9 +136,20 @@ def get_me():
 @app.route('/api/students', methods=['GET'])
 @login_required
 def get_students():
-
     conn = get_db_connection()
-    students = conn.execute('SELECT * FROM students').fetchall()
+    query = 'SELECT * FROM students'
+    params = []
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        authorized_classes = get_authorized_classes(teacher_id)
+        if not authorized_classes:
+            conn.close()
+            return jsonify([])
+        query += " WHERE class_id IN ({})".format(','.join(['?'] * len(authorized_classes)))
+        params = authorized_classes
+        
+    students = conn.execute(query, params).fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in students])
 
