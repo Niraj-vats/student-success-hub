@@ -636,7 +636,9 @@ def add_attendance():
             INSERT INTO attendance (student_id, subject_id, total_classes, attended_classes, attendance_percentage, status, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (student_id, subject_id, total_classes, attended_classes, percentage, status, session.get('user_id')))
+        new_id = cursor.lastrowid
         conn.commit()
+        log_audit('CREATE', 'attendance', new_id, f"User created attendance for student {student_id} in subject {subject_id}")
         conn.close()
         return jsonify({'message': 'Attendance added successfully'}), 201
     except Exception as e:
