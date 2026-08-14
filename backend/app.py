@@ -634,18 +634,31 @@ def get_dashboard_stats():
 @app.route('/api/performance', methods=['GET'])
 def get_all_performance():
     conn = get_db_connection()
-    students = conn.execute('SELECT id, name, student_id, department, semester FROM students').fetchall()
+    query = 'SELECT id, name, student_id, department, semester, class_id FROM students'
+    params = []
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        auth_classes = get_authorized_classes(teacher_id)
+        if not auth_classes:
+            conn.close()
+            return jsonify([])
+        query += " WHERE class_id IN ({})".format(','.join(['?']*len(auth_classes)))
+        params = auth_classes
+        
+    students = conn.execute(query, params).fetchall()
     
     results = []
     for s in students:
         perf = calculate_student_performance(conn, s['id'])
-        results.append({
-            'student_id': s['student_id'],
-            'name': s['name'],
-            'department': s['department'],
-            'semester': s['semester'],
-            **perf['overall']
-        })
+        if perf:
+            results.append({
+                'student_id': s['student_id'],
+                'name': s['name'],
+                'department': s['department'],
+                'semester': s['semester'],
+                **perf['overall']
+            })
     
     conn.close()
     return jsonify(results)
