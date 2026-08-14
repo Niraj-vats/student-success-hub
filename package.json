@@ -10,5 +10,8 @@
   },
   "dependencies": {
     "vite": "^8.2.0"
+  },
+  "devDependencies": {
+    "lovable-tagger": "^1.3.3"
   }
 }
