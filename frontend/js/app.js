@@ -3,6 +3,10 @@ import { checkAuth } from './auth-check.js';
 document.addEventListener('DOMContentLoaded', async () => {
     const user = await checkAuth();
     if (user) {
+        if (user.role === 'Admin') {
+            const adminSection = document.getElementById('admin-management-section');
+            if (adminSection) adminSection.style.display = 'block';
+        }
         fetchDashboardStats();
         fetchRecentStudents();
     }
@@ -17,6 +21,10 @@ async function fetchDashboardStats() {
         
         document.getElementById('total-students').textContent = data.totalStudents;
         document.getElementById('total-subjects').textContent = data.totalSubjects;
+        if (document.getElementById('total-teachers')) document.getElementById('total-teachers').textContent = data.totalTeachers;
+        if (document.getElementById('total-departments')) document.getElementById('total-departments').textContent = data.totalDepartments;
+        if (document.getElementById('total-classes')) document.getElementById('total-classes').textContent = data.totalClasses;
+        if (document.getElementById('total-users')) document.getElementById('total-users').textContent = data.totalUsers;
         document.getElementById('avg-percentage').textContent = data.averagePercentage + '%';
         document.getElementById('pass-percentage').textContent = data.passPercentage + '%';
     } catch (error) {
