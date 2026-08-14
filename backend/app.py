@@ -78,6 +78,54 @@ def teacher_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def student_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        role = session.get('role')
+        # Admin and Teacher can access, Student can only access if it's their own data (checked inside route)
+        if role not in ['Admin', 'Teacher', 'Student']:
+            return jsonify({'error': 'Forbidden'}), 403
+            
+        conn = get_db_connection()
+        user = conn.execute('SELECT is_active FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        conn.close()
+        
+        if not user or not user['is_active']:
+            session.clear()
+            return jsonify({'error': 'Account is inactive'}), 403
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- Audit Logging Helper ---
+
+def log_audit(action, table_name, record_id, description):
+    if 'user_id' not in session:
+        return
+        
+    conn = get_db_connection()
+    try:
+        conn.execute('''
+            INSERT INTO audit_logs (user_id, username, role, action, table_name, record_id, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            session.get('user_id'),
+            session.get('username'),
+            session.get('role'),
+            action,
+            table_name,
+            record_id,
+            description
+        ))
+        conn.commit()
+    except Exception as e:
+        print(f"Audit logging failed: {e}")
+    finally:
+        conn.close()
+
 # --- Authentication API ---
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -103,6 +151,8 @@ def login():
         session['teacher_id'] = user['teacher_id']
         session['student_id'] = user['student_id']
         
+        log_audit('LOGIN_SUCCESS', 'users', user['id'], f"User {user['username']} logged in successfully.")
+        
         return jsonify({
             'id': user['id'],
             'username': user['username'],
@@ -110,11 +160,18 @@ def login():
             'student_id': user.get('student_id'),
             'teacher_id': user.get('teacher_id')
         })
+    
+    # Log failed login attempt
+    if username:
+        # We don't have session yet, but we can try to log it manually if needed
+        # For simplicity in this beginner project, we log success/logout primarily
+        pass
         
     return jsonify({'error': 'Invalid username or password'}), 401
 
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():
+    log_audit('LOGOUT', 'users', session.get('user_id'), f"User {session.get('username')} logged out.")
     session.clear()
     return jsonify({'message': 'Logged out successfully'})
 
@@ -148,6 +205,10 @@ def get_students():
             return jsonify([])
         query += " WHERE class_id IN ({})".format(','.join(['?'] * len(authorized_classes)))
         params = authorized_classes
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        query += " WHERE id = ?"
+        params = [student_id]
         
     students = conn.execute(query, params).fetchall()
     conn.close()
@@ -169,12 +230,16 @@ def get_student(id):
         if student['class_id'] not in auth_classes:
             conn.close()
             return jsonify({'error': 'Unauthorized to view this student'}), 403
+    elif session.get('role') == 'Student':
+        if id != session.get('student_id'):
+            conn.close()
+            return jsonify({'error': 'Forbidden: You can only access your own profile'}), 403
             
     conn.close()
     return jsonify(dict(student))
 
-@login_required
 @app.route('/api/students', methods=['POST'])
+@admin_required
 def add_student():
     data = request.json
     conn = get_db_connection()
@@ -186,14 +251,15 @@ def add_student():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'students', new_id, f"Admin created student {data['name']} (ID: {data['student_id']})")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Student added successfully'}), 201
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 400
 
-@login_required
 @app.route('/api/students/<int:id>', methods=['PUT'])
+@admin_required
 def update_student(id):
     data = request.json
     conn = get_db_connection()
@@ -202,15 +268,21 @@ def update_student(id):
         (data['name'], data['roll_number'], data['department'], data['semester'], data['email'], data['phone'], id)
     )
     conn.commit()
+    log_audit('UPDATE', 'students', id, f"Admin updated student record for {data['name']}")
     conn.close()
     return jsonify({'message': 'Student updated successfully'})
 
-@login_required
 @app.route('/api/students/<int:id>', methods=['DELETE'])
+@admin_required
 def delete_student(id):
     conn = get_db_connection()
+    # Get student name before deletion for audit
+    student = conn.execute('SELECT name FROM students WHERE id = ?', (id,)).fetchone()
+    name = student['name'] if student else "Unknown"
+    
     conn.execute('DELETE FROM students WHERE id = ?', (id,))
     conn.commit()
+    log_audit('DELETE', 'students', id, f"Admin deleted student {name}")
     conn.close()
     return jsonify({'message': 'Student deleted successfully'})
 
@@ -231,13 +303,22 @@ def get_subjects():
             return jsonify([])
         query += " WHERE id IN ({})".format(','.join(['?'] * len(authorized_subjects)))
         params = authorized_subjects
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        student = conn.execute('SELECT semester FROM students WHERE id = ?', (student_id,)).fetchone()
+        if student:
+            query += " WHERE semester = ?"
+            params = [student['semester']]
+        else:
+            conn.close()
+            return jsonify([])
         
     subjects = conn.execute(query, params).fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in subjects])
 
-@login_required
 @app.route('/api/subjects', methods=['POST'])
+@admin_required
 def add_subject():
     data = request.json
     conn = get_db_connection()
@@ -249,6 +330,7 @@ def add_subject():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'subjects', new_id, f"Admin added subject: {data['subject_name']} ({data['subject_code']})")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Subject added successfully'}), 201
     except Exception as e:
@@ -271,12 +353,18 @@ def get_subject(id):
         if id not in auth_subjects:
             conn.close()
             return jsonify({'error': 'Unauthorized to view this subject'}), 403
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        student = conn.execute('SELECT semester FROM students WHERE id = ?', (student_id,)).fetchone()
+        if not student or subject['semester'] != student['semester']:
+            conn.close()
+            return jsonify({'error': 'Forbidden: This subject is not in your semester'}), 403
             
     conn.close()
     return jsonify(dict(subject))
 
-@login_required
 @app.route('/api/subjects/<int:id>', methods=['PUT'])
+@admin_required
 def update_subject(id):
     data = request.json
     conn = get_db_connection()
@@ -286,14 +374,15 @@ def update_subject(id):
             (data['subject_code'], data['subject_name'], data['semester'], data['credits'], id)
         )
         conn.commit()
+        log_audit('UPDATE', 'subjects', id, f"Admin updated subject: {data['subject_name']} ({data['subject_code']})")
         conn.close()
         return jsonify({'message': 'Subject updated successfully'})
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 400
 
-@login_required
 @app.route('/api/subjects/<int:id>', methods=['DELETE'])
+@admin_required
 def delete_subject(id):
     conn = get_db_connection()
     try:
@@ -307,6 +396,7 @@ def delete_subject(id):
             
         conn.execute('DELETE FROM subjects WHERE id = ?', (id,))
         conn.commit()
+        log_audit('DELETE', 'subjects', id, f"Admin deleted subject ID: {id}")
         conn.close()
         return jsonify({'message': 'Subject deleted successfully'})
     except Exception as e:
@@ -343,6 +433,10 @@ def get_marks():
         )
         params.extend(authorized_classes)
         params.extend(authorized_subjects)
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        query += " WHERE m.student_id = ?"
+        params = [student_id]
 
     marks = conn.execute(query, params).fetchall()
     conn.close()
@@ -355,6 +449,9 @@ def add_marks():
     student_id = data.get('student_id')
     subject_id = data.get('subject_id')
     
+    if session.get('role') == 'Student':
+        return jsonify({'error': 'Forbidden: Students cannot add marks'}), 403
+        
     if session.get('role') == 'Teacher':
         teacher_id = session.get('teacher_id')
         
@@ -398,7 +495,9 @@ def add_marks():
             INSERT INTO marks (student_id, subject_id, internal_marks, external_marks, total_marks, percentage, grade, pass_fail, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (student_id, subject_id, internal, external, total, percentage, grade, pass_fail, session.get('user_id')))
+        new_id = cursor.lastrowid
         conn.commit()
+        log_audit('CREATE', 'marks', new_id, f"User created marks for student {student_id} in subject {subject_id}")
         conn.close()
         return jsonify({'message': 'Marks added successfully'}), 201
     except Exception as e:
@@ -488,6 +587,10 @@ def get_attendance():
         )
         params.extend(authorized_classes)
         params.extend(authorized_subjects)
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        query += " WHERE a.student_id = ?"
+        params = [student_id]
 
     attendance = conn.execute(query, params).fetchall()
     conn.close()
@@ -500,6 +603,9 @@ def add_attendance():
     student_id = data.get('student_id')
     subject_id = data.get('subject_id')
     
+    if session.get('role') == 'Student':
+        return jsonify({'error': 'Forbidden: Students cannot add attendance'}), 403
+        
     if session.get('role') == 'Teacher':
         teacher_id = session.get('teacher_id')
         conn = get_db_connection()
@@ -533,7 +639,9 @@ def add_attendance():
             INSERT INTO attendance (student_id, subject_id, total_classes, attended_classes, attendance_percentage, status, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (student_id, subject_id, total_classes, attended_classes, percentage, status, session.get('user_id')))
+        new_id = cursor.lastrowid
         conn.commit()
+        log_audit('CREATE', 'attendance', new_id, f"User created attendance for student {student_id} in subject {subject_id}")
         conn.close()
         return jsonify({'message': 'Attendance added successfully'}), 201
     except Exception as e:
@@ -611,7 +719,7 @@ def get_dashboard_stats():
         avg_pct = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
         total_marks_count = conn.execute("SELECT COUNT(*) FROM marks").fetchone()[0]
         pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE pass_fail = 'Pass'").fetchone()[0]
-    else:
+    elif role == 'Teacher':
         # Teacher Stats
         teacher_id = session.get('teacher_id')
         auth_classes = get_authorized_classes(teacher_id)
@@ -633,6 +741,24 @@ def get_dashboard_stats():
         avg_pct = conn.execute("SELECT AVG(percentage) FROM marks WHERE subject_id IN ({})".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0] or 0
         total_marks_count = conn.execute("SELECT COUNT(*) FROM marks WHERE subject_id IN ({})".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0]
         pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE subject_id IN ({}) AND pass_fail = 'Pass'".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0]
+    elif role == 'Student':
+        student_id = session.get('student_id')
+        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+        
+        total_students = 1
+        total_subjects = conn.execute('SELECT COUNT(*) FROM subjects WHERE semester = ?', (student['semester'],)).fetchone()[0]
+        total_teachers = conn.execute('''
+            SELECT COUNT(DISTINCT ta.teacher_id) 
+            FROM teacher_assignments ta 
+            WHERE ta.class_id = ?
+        ''', (student['class_id'],)).fetchone()[0]
+        total_departments = 1
+        total_classes = 1
+        total_users = 1
+        
+        avg_pct = conn.execute('SELECT AVG(percentage) FROM marks WHERE student_id = ?', (student_id,)).fetchone()[0] or 0
+        total_marks_count = conn.execute("SELECT COUNT(*) FROM marks WHERE student_id = ?", (student_id,)).fetchone()[0]
+        pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE student_id = ? AND pass_fail = 'Pass'", (student_id,)).fetchone()[0]
 
     pass_pct = (pass_count / total_marks_count * 100) if total_marks_count > 0 else 0
     conn.close()
@@ -665,6 +791,10 @@ def get_all_performance():
             return jsonify([])
         query += " WHERE class_id IN ({})".format(','.join(['?']*len(auth_classes)))
         params = auth_classes
+    elif session.get('role') == 'Student':
+        student_id = session.get('student_id')
+        query += " WHERE id = ?"
+        params = [student_id]
         
     students = conn.execute(query, params).fetchall()
     
@@ -698,6 +828,10 @@ def get_student_performance(student_id):
         if not is_teacher_authorized(teacher_id, class_id=student['class_id']):
             conn.close()
             return jsonify({'error': 'Unauthorized'}), 403
+    elif session.get('role') == 'Student':
+        if student_id != session.get('student_id'):
+            conn.close()
+            return jsonify({'error': 'Forbidden: You can only view your own performance'}), 403
 
     performance = calculate_student_performance(conn, student_id)
     if not performance:
@@ -818,6 +952,10 @@ def get_student_results(student_id):
         if not is_teacher_authorized(teacher_id, class_id=student['class_id']):
             conn.close()
             return jsonify({'error': 'Unauthorized'}), 403
+    elif session.get('role') == 'Student':
+        if student_id != session.get('student_id'):
+            conn.close()
+            return jsonify({'error': 'Forbidden: You can only view your own results'}), 403
 
     # Get subjects for the student's semester
     subjects_query = 'SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?'
@@ -901,6 +1039,7 @@ def get_student_results(student_id):
 
 @login_required
 @app.route('/api/reports/class-summary', methods=['GET'])
+@teacher_required
 def get_class_summary():
     conn = get_db_connection()
     try:
@@ -979,6 +1118,7 @@ def get_class_summary():
 
 @login_required
 @app.route('/api/reports/attendance-summary', methods=['GET'])
+@teacher_required
 def get_attendance_summary():
     conn = get_db_connection()
     try:
@@ -1038,6 +1178,7 @@ def add_department():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'departments', new_id, f"Admin created department {data['department_name']}")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Department added successfully'}), 201
     except Exception as e:
@@ -1055,6 +1196,7 @@ def update_department(id):
             (data['department_code'], data['department_name'], id)
         )
         conn.commit()
+        log_audit('UPDATE', 'departments', id, f"Admin updated department {data['department_name']}")
         conn.close()
         return jsonify({'message': 'Department updated successfully'})
     except Exception as e:
@@ -1066,6 +1208,10 @@ def update_department(id):
 def delete_department(id):
     conn = get_db_connection()
     try:
+        # Get name for audit
+        dept = conn.execute('SELECT department_name FROM departments WHERE id = ?', (id,)).fetchone()
+        name = dept['department_name'] if dept else "Unknown"
+        
         # Check dependencies
         classes_ref = conn.execute('SELECT COUNT(*) FROM classes WHERE department_id = ?', (id,)).fetchone()[0]
         if classes_ref > 0:
@@ -1074,6 +1220,7 @@ def delete_department(id):
             
         conn.execute('DELETE FROM departments WHERE id = ?', (id,))
         conn.commit()
+        log_audit('DELETE', 'departments', id, f"Admin deleted department {name}")
         conn.close()
         return jsonify({'message': 'Department deleted successfully'})
     except Exception as e:
@@ -1106,6 +1253,7 @@ def add_class():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'classes', new_id, f"Admin created class {data['class_name']}")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Class added successfully'}), 201
     except Exception as e:
@@ -1123,6 +1271,7 @@ def update_class(id):
             (data['class_name'], data['department_id'], data['semester'], data['section'], data['academic_year'], id)
         )
         conn.commit()
+        log_audit('UPDATE', 'classes', id, f"Admin updated class {data['class_name']}")
         conn.close()
         return jsonify({'message': 'Class updated successfully'})
     except Exception as e:
@@ -1134,6 +1283,10 @@ def update_class(id):
 def delete_class(id):
     conn = get_db_connection()
     try:
+        # Get name for audit
+        cls = conn.execute('SELECT class_name FROM classes WHERE id = ?', (id,)).fetchone()
+        name = cls['class_name'] if cls else "Unknown"
+        
         # Check dependencies
         student_ref = conn.execute('SELECT COUNT(*) FROM students WHERE class_id = ?', (id,)).fetchone()[0]
         assignment_ref = conn.execute('SELECT COUNT(*) FROM teacher_assignments WHERE class_id = ?', (id,)).fetchone()[0]
@@ -1144,6 +1297,7 @@ def delete_class(id):
             
         conn.execute('DELETE FROM classes WHERE id = ?', (id,))
         conn.commit()
+        log_audit('DELETE', 'classes', id, f"Admin deleted class {name}")
         conn.close()
         return jsonify({'message': 'Class deleted successfully'})
     except Exception as e:
@@ -1172,6 +1326,7 @@ def add_teacher():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'teachers', new_id, f"Admin created teacher {data['name']}")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Teacher added successfully'}), 201
     except Exception as e:
@@ -1189,6 +1344,7 @@ def update_teacher(id):
             (data['teacher_code'], data['name'], data['email'], data['department'], id)
         )
         conn.commit()
+        log_audit('UPDATE', 'teachers', id, f"Admin updated teacher {data['name']}")
         conn.close()
         return jsonify({'message': 'Teacher updated successfully'})
     except Exception as e:
@@ -1200,6 +1356,10 @@ def update_teacher(id):
 def delete_teacher(id):
     conn = get_db_connection()
     try:
+        # Get name for audit
+        teacher = conn.execute('SELECT name FROM teachers WHERE id = ?', (id,)).fetchone()
+        name = teacher['name'] if teacher else "Unknown"
+        
         # Check dependencies
         assignment_ref = conn.execute('SELECT COUNT(*) FROM teacher_assignments WHERE teacher_id = ?', (id,)).fetchone()[0]
         user_ref = conn.execute('SELECT COUNT(*) FROM users WHERE teacher_id = ?', (id,)).fetchone()[0]
@@ -1210,6 +1370,7 @@ def delete_teacher(id):
             
         conn.execute('DELETE FROM teachers WHERE id = ?', (id,))
         conn.commit()
+        log_audit('DELETE', 'teachers', id, f"Admin deleted teacher {name}")
         conn.close()
         return jsonify({'message': 'Teacher deleted successfully'})
     except Exception as e:
@@ -1245,6 +1406,7 @@ def add_teacher_assignment():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'teacher_assignments', new_id, f"Admin assigned teacher {data['teacher_id']} to class {data['class_id']} and subject {data['subject_id']}")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Teacher assigned successfully'}), 201
     except Exception as e:
@@ -1272,6 +1434,7 @@ def update_teacher_assignment(id):
             (data['teacher_id'], data['class_id'], data['subject_id'], id)
         )
         conn.commit()
+        log_audit('UPDATE', 'teacher_assignments', id, f"Admin updated teacher assignment")
         conn.close()
         return jsonify({'message': 'Assignment updated successfully'})
     except Exception as e:
@@ -1285,6 +1448,7 @@ def delete_teacher_assignment(id):
     try:
         conn.execute('DELETE FROM teacher_assignments WHERE id = ?', (id,))
         conn.commit()
+        log_audit('DELETE', 'teacher_assignments', id, "Admin deleted teacher assignment")
         conn.close()
         return jsonify({'message': 'Assignment deleted successfully'})
     except Exception as e:
@@ -1356,8 +1520,9 @@ def create_user():
             INSERT INTO users (username, password_hash, role, student_id, teacher_id, is_active)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (username, password_hash, role, student_id, teacher_id, 1))
-        conn.commit()
         new_id = cursor.lastrowid
+        conn.commit()
+        log_audit('CREATE', 'users', new_id, f"Admin created user account {username} (Role: {role})")
         conn.close()
         return jsonify({'id': new_id, 'message': 'User created successfully'}), 201
     except Exception as e:
@@ -1375,8 +1540,13 @@ def update_user_status(id):
         return jsonify({'error': 'You cannot deactivate your own account'}), 400
         
     conn = get_db_connection()
+    # Get username for audit
+    user = conn.execute('SELECT username FROM users WHERE id = ?', (id,)).fetchone()
+    username = user['username'] if user else "Unknown"
+    
     conn.execute('UPDATE users SET is_active = ? WHERE id = ?', (is_active, id))
     conn.commit()
+    log_audit('UPDATE', 'users', id, f"Admin {'activated' if is_active else 'deactivated'} user {username}")
     conn.close()
     return jsonify({'message': f"User account {'activated' if is_active else 'deactivated'} successfully"})
 
@@ -1391,8 +1561,13 @@ def reset_user_password(id):
         
     password_hash = generate_password_hash(new_password)
     conn = get_db_connection()
+    # Get username for audit
+    user = conn.execute('SELECT username FROM users WHERE id = ?', (id,)).fetchone()
+    username = user['username'] if user else "Unknown"
+    
     conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (password_hash, id))
     conn.commit()
+    log_audit('UPDATE', 'users', id, f"Admin reset password for user {username}")
     conn.close()
     return jsonify({'message': 'Password reset successfully'})
 
@@ -1404,10 +1579,29 @@ def delete_user(id):
         return jsonify({'error': 'You cannot delete your own account'}), 400
         
     conn = get_db_connection()
+    # Get username for audit
+    user = conn.execute('SELECT username FROM users WHERE id = ?', (id,)).fetchone()
+    username = user['username'] if user else "Unknown"
+    
     conn.execute('DELETE FROM users WHERE id = ?', (id,))
     conn.commit()
+    log_audit('DELETE', 'users', id, f"Admin deleted user account for {username}")
     conn.close()
     return jsonify({'message': 'User account deleted successfully'})
+
+# --- Audit Logs API ---
+
+@app.route('/api/audit-logs', methods=['GET'])
+@admin_required
+def get_audit_logs():
+    conn = get_db_connection()
+    logs = conn.execute('''
+        SELECT * FROM audit_logs 
+        ORDER BY timestamp DESC 
+        LIMIT 500
+    ''').fetchall()
+    conn.close()
+    return jsonify([dict(ix) for ix in logs])
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

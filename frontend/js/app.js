@@ -3,7 +3,10 @@ import { checkAuth } from './auth-check.js';
 document.addEventListener('DOMContentLoaded', async () => {
     const user = await checkAuth();
     if (user) {
+        // Store role for visibility logic in other functions
+        sessionStorage.setItem('role', user.role);
         if (user.role === 'Admin') {
+            sessionStorage.setItem('student_id', '');
             const adminSection = document.getElementById('admin-management-section');
             if (adminSection) adminSection.style.display = 'block';
             
@@ -17,7 +20,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             for (const [id, text] of Object.entries(statsTitles)) {
                 const el = document.getElementById(id);
                 if (el) el.textContent = text;
-            }
+        } else if (user.role === 'Student') {
+            sessionStorage.setItem('student_id', user.student_id);
+            // Dynamic relabeling for Student Dashboard
+            document.getElementById('total-students-title').textContent = 'My Profile';
+            document.getElementById('total-students').textContent = 'VIEW';
+            document.getElementById('total-students').parentElement.onclick = () => window.location.href = `student-details.html?id=${user.student_id}`;
+            document.getElementById('total-students').parentElement.style.cursor = 'pointer';
+
+            document.getElementById('total-subjects-title').textContent = 'My Subjects';
+            document.getElementById('total-subjects').parentElement.onclick = () => window.location.href = 'subjects.html';
+            document.getElementById('total-subjects').parentElement.style.cursor = 'pointer';
+            
+            document.getElementById('avg-percentage-title').textContent = 'My Attendance';
+            document.getElementById('avg-percentage').parentElement.onclick = () => window.location.href = 'attendance.html';
+            document.getElementById('avg-percentage').parentElement.style.cursor = 'pointer';
+
+            document.getElementById('pass-percentage-title').textContent = 'My Results';
+            document.getElementById('pass-percentage').parentElement.onclick = () => window.location.href = 'results.html';
+            document.getElementById('pass-percentage').parentElement.style.cursor = 'pointer';
+        } else {
+            sessionStorage.setItem('student_id', '');
+        }
         } else if (user.role === 'Teacher') {
             // Adjust labels for Teacher scoping
             const statsTitles = {
@@ -25,6 +49,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 'total-subjects-title': 'Assigned Subjects',
                 'avg-percentage-title': 'Avg. Class Performance',
                 'pass-percentage-title': 'Class Pass %'
+            };
+            for (const [id, text] of Object.entries(statsTitles)) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            }
+        } else if (user.role === 'Student') {
+            // Adjust labels for Student ownership
+            const statsTitles = {
+                'total-students-title': 'Student Profile',
+                'total-subjects-title': 'My Subjects',
+                'avg-percentage-title': 'My Avg. Percentage',
+                'pass-percentage-title': 'My Pass %'
             };
             for (const [id, text] of Object.entries(statsTitles)) {
                 const el = document.getElementById(id);
@@ -60,6 +96,13 @@ async function fetchRecentStudents() {
     try {
         const response = await fetch(`${API_BASE_URL}/students`, { credentials: 'include' });
         const students = await response.json();
+        
+        // If student role, hide enrollment table since they already have stats
+        if (sessionStorage.getItem('role') === 'Student') {
+            const tableCard = document.querySelector('.card:last-child');
+            if (tableCard) tableCard.style.display = 'none';
+            return;
+        }
         
         const tbody = document.getElementById('recent-students');
         tbody.innerHTML = '';

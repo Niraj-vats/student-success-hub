@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Logs - Academic Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar will be injected here if we follow a template, 
+             but for now we replicate for simplicity as per project pattern -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>AMS</h2>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Dashboard</a></li>
+                    <li><a href="students.html">Students</a></li>
+                    <li><a href="subjects.html">Subjects</a></li>
+                    <li><a href="marks.html">Marks</a></li>
+                    <li><a href="attendance.html">Attendance</a></li>
+                    <li><a href="performance.html">Performance</a></li>
+                    <li><a href="results.html">Results</a></li>
+                    <li><a href="reports.html">Reports</a></li>
+                    <li class="nav-section-title">ADMIN</li>
+                    <li><a href="users.html">User Accounts</a></li>
+                    <li><a href="departments.html">Departments</a></li>
+                    <li><a href="classes.html">Classes</a></li>
+                    <li><a href="teachers.html">Teachers</a></li>
+                    <li><a href="teacher-assignments.html">Assignments</a></li>
+                    <li><a href="audit-logs.html" class="active">Audit Logs</a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <span id="user-display-name">Loading...</span>
+                    <small id="user-display-role"></small>
+                </div>
+                <button onclick="logout()" class="btn-logout">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="content-header">
+                <h1>System Audit Logs</h1>
+                <div class="header-actions">
+                    <button id="refresh-logs" class="btn-secondary">Refresh</button>
+                </div>
+            </header>
+
+            <div class="table-container">
+                <div class="table-filters">
+                    <input type="text" id="log-search" placeholder="Search by user or action...">
+                </div>
+                <table id="audit-logs-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Action</th>
+                            <th>Table</th>
+                            <th>ID</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-logs-body">
+                        <!-- Data injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="js/auth-check.js"></script>
+    <script type="module" src="js/audit-logs.js"></script>
+</body>
+</html>

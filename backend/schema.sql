@@ -116,3 +116,17 @@ CREATE TABLE IF NOT EXISTS users (
         (role = 'Student' AND student_id IS NOT NULL AND teacher_id IS NULL)
     )
 );
+
+-- Audit Logs table
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    username TEXT,
+    role TEXT,
+    action TEXT,
+    table_name TEXT,
+    record_id INTEGER,
+    description TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
