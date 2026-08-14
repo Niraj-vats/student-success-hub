@@ -5,7 +5,7 @@ let allSubjects = [];
 
 export async function fetchSubjects() {
     try {
-        const response = await fetch(`${API_BASE_URL}/subjects`);
+        const response = await fetch(`${API_BASE_URL}/subjects`, { credentials: 'include' });
         allSubjects = await response.json();
         
         populateSemesterFilter();
@@ -114,7 +114,7 @@ export function closeModal() {
 
 export async function editSubject(id) {
     try {
-        const response = await fetch(`${API_BASE_URL}/subjects/${id}`);
+        const response = await fetch(`${API_BASE_URL}/subjects/${id}`, { credentials: 'include' });
         const subject = await response.json();
         
         const modal = document.getElementById('subjectModal');

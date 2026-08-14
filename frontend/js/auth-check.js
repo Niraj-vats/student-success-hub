@@ -3,7 +3,7 @@
     if (window.location.pathname.endsWith('login.html')) return;
 
     try {
-        const response = await fetch('http://localhost:5000/api/auth/me');
+        const response = await fetch('http://localhost:5000/api/auth/me', { credentials: 'include' });
         if (!response.ok) {
             window.location.href = 'login.html';
             return;

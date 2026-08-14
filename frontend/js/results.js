@@ -2,7 +2,7 @@ const API_BASE_URL = 'http://localhost:5000/api';
 
 export async function loadStudents() {
     try {
-        const response = await fetch(`${API_BASE_URL}/students`);
+        const response = await fetch(`${API_BASE_URL}/students`, { credentials: 'include' });
         const students = await response.json();
         
         const select = document.getElementById('studentSelect');
@@ -31,7 +31,7 @@ export async function loadStudentResult() {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/results/${studentId}`);
+        const response = await fetch(`${API_BASE_URL}/results/${studentId}`, { credentials: 'include' });
         if (!response.ok) {
             throw new Error('Failed to fetch result');
         }

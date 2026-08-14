@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/students/${studentId}`);
+        const response = await fetch(`${API_BASE_URL}/students/${studentId}`, { credentials: 'include' });
         
         if (!response.ok) {
             if (response.status === 404) {

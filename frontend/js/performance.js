@@ -2,7 +2,7 @@ const API_BASE = 'http://localhost:5000/api';
 
 export async function init() {
     const selector = document.getElementById('studentSelector');
-    const response = await fetch(`${API_BASE}/students`);
+    const response = await fetch(`${API_BASE}/students`, { credentials: 'include' });
     const students = await response.json();
     
     students.forEach(s => {
@@ -27,7 +27,7 @@ export async function loadPerformance() {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/performance/${studentId}`);
+        const response = await fetch(`${API_BASE}/performance/${studentId}`, { credentials: 'include' });
         const data = await response.json();
         
         if (data.error) {

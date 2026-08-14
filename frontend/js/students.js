@@ -5,7 +5,7 @@ let allStudents = [];
 
 export async function fetchStudents() {
     try {
-        const response = await fetch(`${API_BASE_URL}/students`);
+        const response = await fetch(`${API_BASE_URL}/students`, { credentials: 'include' });
         allStudents = await response.json();
         
         // Populate department filter
@@ -110,7 +110,7 @@ export function closeModal() {
 
 export async function editStudent(id) {
     try {
-        const response = await fetch(`${API_BASE_URL}/students/${id}`);
+        const response = await fetch(`${API_BASE_URL}/students/${id}`, { credentials: 'include' });
         const student = await response.json();
         
         document.getElementById('modalTitle').textContent = 'Edit Student';
