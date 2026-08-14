@@ -1175,6 +1175,7 @@ def add_department():
         )
         conn.commit()
         new_id = cursor.lastrowid
+        log_audit('CREATE', 'departments', new_id, f"Admin created department {data['department_name']}")
         conn.close()
         return jsonify({'id': new_id, 'message': 'Department added successfully'}), 201
     except Exception as e:
