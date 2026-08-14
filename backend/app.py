@@ -210,7 +210,19 @@ def delete_student(id):
 @app.route('/api/subjects', methods=['GET'])
 def get_subjects():
     conn = get_db_connection()
-    subjects = conn.execute('SELECT * FROM subjects').fetchall()
+    query = 'SELECT * FROM subjects'
+    params = []
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        authorized_subjects = get_authorized_subjects(teacher_id)
+        if not authorized_subjects:
+            conn.close()
+            return jsonify([])
+        query += " WHERE id IN ({})".format(','.join(['?'] * len(authorized_subjects)))
+        params = authorized_subjects
+        
+    subjects = conn.execute(query, params).fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in subjects])
 
