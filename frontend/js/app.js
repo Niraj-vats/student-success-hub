@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Store role for visibility logic in other functions
         sessionStorage.setItem('role', user.role);
         if (user.role === 'Admin') {
+            sessionStorage.setItem('student_id', '');
             const adminSection = document.getElementById('admin-management-section');
             if (adminSection) adminSection.style.display = 'block';
             
