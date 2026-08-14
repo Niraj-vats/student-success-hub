@@ -1115,6 +1115,7 @@ def get_class_summary():
 
 @login_required
 @app.route('/api/reports/attendance-summary', methods=['GET'])
+@teacher_required
 def get_attendance_summary():
     conn = get_db_connection()
     try:
