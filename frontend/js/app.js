@@ -3,6 +3,8 @@ import { checkAuth } from './auth-check.js';
 document.addEventListener('DOMContentLoaded', async () => {
     const user = await checkAuth();
     if (user) {
+        // Store role for visibility logic in other functions
+        sessionStorage.setItem('role', user.role);
         if (user.role === 'Admin') {
             const adminSection = document.getElementById('admin-management-section');
             if (adminSection) adminSection.style.display = 'block';
