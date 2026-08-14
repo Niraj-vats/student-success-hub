@@ -133,5 +133,12 @@
     </div>
 
     <script type="module" src="js/students.js"></script>
+    <script>
+      import { openModal, closeModal, editStudent, deleteStudent } from './js/students.js';
+      window.openModal = openModal;
+      window.closeModal = closeModal;
+      window.editStudent = editStudent;
+      window.deleteStudent = deleteStudent;
+    </script>
 </body>
 </html>
