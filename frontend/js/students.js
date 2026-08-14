@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', fetchStudents);
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
-async function fetchStudents() {
+export async function fetchStudents() {
     try {
         const response = await fetch(`${API_BASE_URL}/students`);
         const students = await response.json();
@@ -30,18 +30,18 @@ async function fetchStudents() {
     }
 }
 
-function openModal() {
+export function openModal() {
     document.getElementById('modalTitle').textContent = 'Add Student';
     document.getElementById('studentForm').reset();
     document.getElementById('studentIdx').value = '';
     document.getElementById('studentModal').style.display = 'flex';
 }
 
-function closeModal() {
+export function closeModal() {
     document.getElementById('studentModal').style.display = 'none';
 }
 
-async function editStudent(id) {
+export async function editStudent(id) {
     try {
         const response = await fetch(`${API_BASE_URL}/students/${id}`);
         const student = await response.json();
@@ -62,7 +62,7 @@ async function editStudent(id) {
     }
 }
 
-async function deleteStudent(id) {
+export async function deleteStudent(id) {
     if (confirm('Are you sure you want to delete this student?')) {
         try {
             await fetch(`${API_BASE_URL}/students/${id}`, { method: 'DELETE' });
