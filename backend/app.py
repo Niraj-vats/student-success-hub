@@ -230,6 +230,10 @@ def get_student(id):
         if student['class_id'] not in auth_classes:
             conn.close()
             return jsonify({'error': 'Unauthorized to view this student'}), 403
+    elif session.get('role') == 'Student':
+        if id != session.get('student_id'):
+            conn.close()
+            return jsonify({'error': 'Forbidden: You can only access your own profile'}), 403
             
     conn.close()
     return jsonify(dict(student))
