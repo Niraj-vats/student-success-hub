@@ -20,6 +20,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!response.ok) {
             if (response.status === 404) {
                 showError('Student Not Found', 'The requested student could not be found in the database.');
+            } else if (response.status === 403) {
+                showError('Access Denied', 'You are not authorized to view this student\'s profile.');
             } else {
                 showError('API Error', 'There was a problem communicating with the server.');
             }

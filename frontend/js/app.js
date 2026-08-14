@@ -6,6 +6,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (user.role === 'Admin') {
             const adminSection = document.getElementById('admin-management-section');
             if (adminSection) adminSection.style.display = 'block';
+            
+            // Set institution labels for Admin
+            const statsTitles = {
+                'total-students-title': 'Total Students',
+                'total-subjects-title': 'Total Subjects',
+                'avg-percentage-title': 'Avg. Percentage',
+                'pass-percentage-title': 'Pass Percentage'
+            };
+            for (const [id, text] of Object.entries(statsTitles)) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            }
+        } else if (user.role === 'Teacher') {
+            // Adjust labels for Teacher scoping
+            const statsTitles = {
+                'total-students-title': 'Scoped Students',
+                'total-subjects-title': 'Assigned Subjects',
+                'avg-percentage-title': 'Avg. Class Performance',
+                'pass-percentage-title': 'Class Pass %'
+            };
+            for (const [id, text] of Object.entries(statsTitles)) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            }
         }
         fetchDashboardStats();
         fetchRecentStudents();

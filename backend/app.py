@@ -3,6 +3,7 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection
 from functools import wraps
+from auth_helpers import is_teacher_authorized, get_authorized_classes, get_authorized_subjects
 import os
 
 app = Flask(__name__)
@@ -56,6 +57,27 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def teacher_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        role = session.get('role')
+        if role not in ['Admin', 'Teacher']:
+            return jsonify({'error': 'Forbidden: Teacher or Admin access required'}), 403
+            
+        conn = get_db_connection()
+        user = conn.execute('SELECT is_active FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        conn.close()
+        
+        if not user or not user['is_active']:
+            session.clear()
+            return jsonify({'error': 'Account is inactive'}), 403
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
 # --- Authentication API ---
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -78,13 +100,15 @@ def login():
         session['user_id'] = user['id']
         session['username'] = user['username']
         session['role'] = user['role']
+        session['teacher_id'] = user['teacher_id']
+        session['student_id'] = user['student_id']
         
         return jsonify({
             'id': user['id'],
             'username': user['username'],
             'role': user['role'],
-            'student_id': user['student_id'],
-            'teacher_id': user['teacher_id']
+            'student_id': user.get('student_id'),
+            'teacher_id': user.get('teacher_id')
         })
         
     return jsonify({'error': 'Invalid username or password'}), 401
@@ -102,7 +126,9 @@ def get_me():
     return jsonify({
         'id': session.get('user_id'),
         'username': session.get('username'),
-        'role': session.get('role')
+        'role': session.get('role'),
+        'teacher_id': session.get('teacher_id'),
+        'student_id': session.get('student_id')
     })
 
 # --- Students API ---
@@ -110,9 +136,20 @@ def get_me():
 @app.route('/api/students', methods=['GET'])
 @login_required
 def get_students():
-
     conn = get_db_connection()
-    students = conn.execute('SELECT * FROM students').fetchall()
+    query = 'SELECT * FROM students'
+    params = []
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        authorized_classes = get_authorized_classes(teacher_id)
+        if not authorized_classes:
+            conn.close()
+            return jsonify([])
+        query += " WHERE class_id IN ({})".format(','.join(['?'] * len(authorized_classes)))
+        params = authorized_classes
+        
+    students = conn.execute(query, params).fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in students])
 
@@ -121,9 +158,19 @@ def get_students():
 def get_student(id):
     conn = get_db_connection()
     student = conn.execute('SELECT * FROM students WHERE id = ?', (id,)).fetchone()
-    conn.close()
+    
     if student is None:
+        conn.close()
         return jsonify({'error': 'Student not found'}), 404
+        
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        auth_classes = get_authorized_classes(teacher_id)
+        if student['class_id'] not in auth_classes:
+            conn.close()
+            return jsonify({'error': 'Unauthorized to view this student'}), 403
+            
+    conn.close()
     return jsonify(dict(student))
 
 @login_required
@@ -173,7 +220,19 @@ def delete_student(id):
 @app.route('/api/subjects', methods=['GET'])
 def get_subjects():
     conn = get_db_connection()
-    subjects = conn.execute('SELECT * FROM subjects').fetchall()
+    query = 'SELECT * FROM subjects'
+    params = []
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        authorized_subjects = get_authorized_subjects(teacher_id)
+        if not authorized_subjects:
+            conn.close()
+            return jsonify([])
+        query += " WHERE id IN ({})".format(','.join(['?'] * len(authorized_subjects)))
+        params = authorized_subjects
+        
+    subjects = conn.execute(query, params).fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in subjects])
 
@@ -201,9 +260,19 @@ def add_subject():
 def get_subject(id):
     conn = get_db_connection()
     subject = conn.execute('SELECT * FROM subjects WHERE id = ?', (id,)).fetchone()
-    conn.close()
+    
     if subject is None:
+        conn.close()
         return jsonify({'error': 'Subject not found'}), 404
+        
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        auth_subjects = get_authorized_subjects(teacher_id)
+        if id not in auth_subjects:
+            conn.close()
+            return jsonify({'error': 'Unauthorized to view this subject'}), 403
+            
+    conn.close()
     return jsonify(dict(subject))
 
 @login_required
@@ -250,76 +319,53 @@ def delete_subject(id):
 @app.route('/api/marks', methods=['GET'])
 def get_marks():
     conn = get_db_connection()
-    # Join with students and subjects to get names and extra info for filtering
-    marks = conn.execute('''
+    query = '''
         SELECT m.*, s.name as student_name, s.student_id as student_identifier, 
                sub.subject_name, sub.subject_code, sub.semester
         FROM marks m
         JOIN students s ON m.student_id = s.id
         JOIN subjects sub ON m.subject_id = sub.id
-    ''').fetchall()
+    '''
+    params = []
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        authorized_classes = get_authorized_classes(teacher_id)
+        authorized_subjects = get_authorized_subjects(teacher_id)
+        
+        if not authorized_classes or not authorized_subjects:
+            conn.close()
+            return jsonify([])
+            
+        query += " WHERE s.class_id IN ({}) AND m.subject_id IN ({})".format(
+            ','.join(['?'] * len(authorized_classes)),
+            ','.join(['?'] * len(authorized_subjects))
+        )
+        params.extend(authorized_classes)
+        params.extend(authorized_subjects)
+
+    marks = conn.execute(query, params).fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in marks])
-
-@login_required
-@app.route('/api/marks/<int:id>', methods=['GET'])
-def get_mark(id):
-    conn = get_db_connection()
-    mark = conn.execute('SELECT * FROM marks WHERE id = ?', (id,)).fetchone()
-    conn.close()
-    if mark is None:
-        return jsonify({'error': 'Mark record not found'}), 404
-    return jsonify(dict(mark))
 
 @login_required
 @app.route('/api/marks', methods=['POST'])
 def add_marks():
     data = request.json
-    try:
-        internal = float(data.get('internal_marks', 0))
-        external = float(data.get('external_marks', 0))
+    student_id = data.get('student_id')
+    subject_id = data.get('subject_id')
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
         
-        if internal < 0 or internal > 30 or external < 0 or external > 70:
-            return jsonify({'error': 'Invalid mark values. Internal: 0-30, External: 0-70.'}), 400
-
-        # Calculation
-        total = internal + external
-        percentage = total # Since total max is 100
-        grade = 'F'
-        if percentage >= 90: grade = 'A+'
-        elif percentage >= 80: grade = 'A'
-        elif percentage >= 70: grade = 'B+'
-        elif percentage >= 60: grade = 'B'
-        elif percentage >= 50: grade = 'C'
-        elif percentage >= 40: grade = 'D'
-        
-        pass_fail = 'Pass' if percentage >= 40 else 'Fail'
-
+        # Verify student belongs to an authorized class
         conn = get_db_connection()
-        # Check duplicate
-        exists = conn.execute('SELECT 1 FROM marks WHERE student_id = ? AND subject_id = ?', 
-                             (data['student_id'], data['subject_id'])).fetchone()
-        if exists:
+        student = conn.execute('SELECT class_id FROM students WHERE id = ?', (student_id,)).fetchone()
+        if not student or not is_teacher_authorized(teacher_id, class_id=student['class_id'], subject_id=subject_id):
             conn.close()
-            return jsonify({'error': 'Marks record for this student and subject already exists. Please edit the existing record.'}), 400
-
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO marks (student_id, subject_id, internal_marks, external_marks, total_marks, percentage, grade, pass_fail)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (data['student_id'], data['subject_id'], internal, external, total, percentage, grade, pass_fail))
-        conn.commit()
+            return jsonify({'error': 'Unauthorized: You are not assigned to this class and subject.'}), 403
         conn.close()
-        return jsonify({'message': 'Marks added successfully'}), 201
-    except ValueError:
-        return jsonify({'error': 'Marks must be numeric values.'}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
 
-@login_required
-@app.route('/api/marks/<int:id>', methods=['PUT'])
-def update_marks(id):
-    data = request.json
     try:
         internal = float(data.get('internal_marks', 0))
         external = float(data.get('external_marks', 0))
@@ -340,24 +386,68 @@ def update_marks(id):
         pass_fail = 'Pass' if percentage >= 40 else 'Fail'
 
         conn = get_db_connection()
-        # Check duplicate (excluding current record)
-        exists = conn.execute('SELECT 1 FROM marks WHERE student_id = ? AND subject_id = ? AND id != ?', 
-                             (data['student_id'], data['subject_id'], id)).fetchone()
+        # Check duplicate
+        exists = conn.execute('SELECT 1 FROM marks WHERE student_id = ? AND subject_id = ?', 
+                             (student_id, subject_id)).fetchone()
         if exists:
             conn.close()
-            return jsonify({'error': 'Another marks record for this student and subject already exists.'}), 400
+            return jsonify({'error': 'Marks record for this student and subject already exists.'}), 400
 
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO marks (student_id, subject_id, internal_marks, external_marks, total_marks, percentage, grade, pass_fail, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (student_id, subject_id, internal, external, total, percentage, grade, pass_fail, session.get('user_id')))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Marks added successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@login_required
+@app.route('/api/marks/<int:id>', methods=['PUT'])
+def update_marks(id):
+    data = request.json
+    # Authorization check
+    if session.get('role') == 'Teacher':
+        conn = get_db_connection()
+        mark = conn.execute('SELECT student_id, subject_id FROM marks WHERE id = ?', (id,)).fetchone()
+        if not mark:
+            conn.close()
+            return jsonify({'error': 'Record not found'}), 404
+        
+        student = conn.execute('SELECT class_id FROM students WHERE id = ?', (mark['student_id'],)).fetchone()
+        if not is_teacher_authorized(session.get('teacher_id'), class_id=student['class_id'], subject_id=mark['subject_id']):
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+        conn.close()
+
+    try:
+        internal = float(data.get('internal_marks', 0))
+        external = float(data.get('external_marks', 0))
+        # ... validation logic ...
+        total = internal + external
+        percentage = total
+        grade = 'F'
+        if percentage >= 90: grade = 'A+'
+        elif percentage >= 80: grade = 'A'
+        elif percentage >= 70: grade = 'B+'
+        elif percentage >= 60: grade = 'B'
+        elif percentage >= 50: grade = 'C'
+        elif percentage >= 40: grade = 'D'
+        pass_fail = 'Pass' if percentage >= 40 else 'Fail'
+
+        conn = get_db_connection()
         conn.execute('''
-            UPDATE marks SET student_id=?, subject_id=?, internal_marks=?, external_marks=?, total_marks=?, percentage=?, grade=?, pass_fail=?
+            UPDATE marks SET internal_marks=?, external_marks=?, total_marks=?, percentage=?, grade=?, pass_fail=?, updated_by=?
             WHERE id=?
-        ''', (data['student_id'], data['subject_id'], internal, external, total, percentage, grade, pass_fail, id))
+        ''', (internal, external, total, percentage, grade, pass_fail, session.get('user_id'), id))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Marks updated successfully'})
-    except ValueError:
-        return jsonify({'error': 'Marks must be numeric values.'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
 
 @login_required
 @app.route('/api/marks/<int:id>', methods=['DELETE'])
@@ -374,68 +464,78 @@ def delete_marks(id):
 @app.route('/api/attendance', methods=['GET'])
 def get_attendance():
     conn = get_db_connection()
-    attendance = conn.execute('''
+    query = '''
         SELECT a.*, s.name as student_name, s.student_id as student_identifier, 
                sub.subject_name, sub.subject_code, sub.semester
         FROM attendance a
         JOIN students s ON a.student_id = s.id
         JOIN subjects sub ON a.subject_id = sub.id
-    ''').fetchall()
+    '''
+    params = []
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        authorized_classes = get_authorized_classes(teacher_id)
+        authorized_subjects = get_authorized_subjects(teacher_id)
+        
+        if not authorized_classes or not authorized_subjects:
+            conn.close()
+            return jsonify([])
+            
+        query += " WHERE s.class_id IN ({}) AND a.subject_id IN ({})".format(
+            ','.join(['?'] * len(authorized_classes)),
+            ','.join(['?'] * len(authorized_subjects))
+        )
+        params.extend(authorized_classes)
+        params.extend(authorized_subjects)
+
+    attendance = conn.execute(query, params).fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in attendance])
-
-@login_required
-@app.route('/api/attendance/<int:id>', methods=['GET'])
-def get_attendance_by_id(id):
-    conn = get_db_connection()
-    record = conn.execute('SELECT * FROM attendance WHERE id = ?', (id,)).fetchone()
-    conn.close()
-    if record is None:
-        return jsonify({'error': 'Attendance record not found'}), 404
-    return jsonify(dict(record))
 
 @login_required
 @app.route('/api/attendance', methods=['POST'])
 def add_attendance():
     data = request.json
+    student_id = data.get('student_id')
+    subject_id = data.get('subject_id')
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        conn = get_db_connection()
+        student = conn.execute('SELECT class_id FROM students WHERE id = ?', (student_id,)).fetchone()
+        if not student or not is_teacher_authorized(teacher_id, class_id=student['class_id'], subject_id=subject_id):
+            conn.close()
+            return jsonify({'error': 'Unauthorized: You are not assigned to this class and subject.'}), 403
+        conn.close()
+
     try:
         total_classes = int(data.get('total_classes', 0))
         attended_classes = int(data.get('attended_classes', 0))
-        student_id = data.get('student_id')
-        subject_id = data.get('subject_id')
-
-        if not student_id or not subject_id:
-            return jsonify({'error': 'Student and Subject are required.'}), 400
 
         if total_classes <= 0:
             return jsonify({'error': 'Total classes must be greater than 0.'}), 400
-        if attended_classes < 0:
-            return jsonify({'error': 'Attended classes cannot be negative.'}), 400
-        if attended_classes > total_classes:
-            return jsonify({'error': 'Attended classes cannot exceed total classes.'}), 400
+        if attended_classes < 0 or attended_classes > total_classes:
+            return jsonify({'error': 'Invalid attendance counts.'}), 400
 
-        # Calculation
         percentage = round((attended_classes / total_classes) * 100, 2)
         status = 'ELIGIBLE' if percentage >= 75 else 'SHORTAGE'
 
         conn = get_db_connection()
-        # Check duplicate
         exists = conn.execute('SELECT 1 FROM attendance WHERE student_id = ? AND subject_id = ?', 
                              (student_id, subject_id)).fetchone()
         if exists:
             conn.close()
-            return jsonify({'error': 'Attendance record for this student and subject already exists.'}), 400
+            return jsonify({'error': 'Attendance record already exists.'}), 400
 
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO attendance (student_id, subject_id, total_classes, attended_classes, attendance_percentage, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (student_id, subject_id, total_classes, attended_classes, percentage, status))
+            INSERT INTO attendance (student_id, subject_id, total_classes, attended_classes, attendance_percentage, status, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (student_id, subject_id, total_classes, attended_classes, percentage, status, session.get('user_id')))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Attendance added successfully'}), 201
-    except ValueError:
-        return jsonify({'error': 'Classes must be integer values.'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -443,51 +543,50 @@ def add_attendance():
 @app.route('/api/attendance/<int:id>', methods=['PUT'])
 def update_attendance(id):
     data = request.json
+    if session.get('role') == 'Teacher':
+        conn = get_db_connection()
+        record = conn.execute('SELECT student_id, subject_id FROM attendance WHERE id = ?', (id,)).fetchone()
+        if not record:
+            conn.close()
+            return jsonify({'error': 'Record not found'}), 404
+        
+        student = conn.execute('SELECT class_id FROM students WHERE id = ?', (record['student_id'],)).fetchone()
+        if not is_teacher_authorized(session.get('teacher_id'), class_id=student['class_id'], subject_id=record['subject_id']):
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+        conn.close()
+
     try:
         total_classes = int(data.get('total_classes', 0))
         attended_classes = int(data.get('attended_classes', 0))
-        student_id = data.get('student_id')
-        subject_id = data.get('subject_id')
-
-        if not student_id or not subject_id:
-            return jsonify({'error': 'Student and Subject are required.'}), 400
-
-        if total_classes <= 0:
-            return jsonify({'error': 'Total classes must be greater than 0.'}), 400
-        if attended_classes < 0:
-            return jsonify({'error': 'Attended classes cannot be negative.'}), 400
-        if attended_classes > total_classes:
-            return jsonify({'error': 'Attended classes cannot exceed total classes.'}), 400
-
-        # Calculation
         percentage = round((attended_classes / total_classes) * 100, 2)
         status = 'ELIGIBLE' if percentage >= 75 else 'SHORTAGE'
 
         conn = get_db_connection()
-        # Check duplicate (excluding current ID)
-        exists = conn.execute('SELECT 1 FROM attendance WHERE student_id = ? AND subject_id = ? AND id != ?', 
-                             (student_id, subject_id, id)).fetchone()
-        if exists:
-            conn.close()
-            return jsonify({'error': 'Attendance record for this student and subject already exists.'}), 400
-
         conn.execute('''
             UPDATE attendance 
-            SET student_id=?, subject_id=?, total_classes=?, attended_classes=?, 
-                attendance_percentage=?, status=?
+            SET total_classes=?, attended_classes=?, attendance_percentage=?, status=?, updated_by=?
             WHERE id=?
-        ''', (student_id, subject_id, total_classes, attended_classes, percentage, status, id))
+        ''', (total_classes, attended_classes, percentage, status, session.get('user_id'), id))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Attendance updated successfully'})
-    except ValueError:
-        return jsonify({'error': 'Classes must be integer values.'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
 @login_required
 @app.route('/api/attendance/<int:id>', methods=['DELETE'])
 def delete_attendance(id):
+    if session.get('role') == 'Teacher':
+        conn = get_db_connection()
+        record = conn.execute('SELECT student_id, subject_id FROM attendance WHERE id = ?', (id,)).fetchone()
+        if record:
+            student = conn.execute('SELECT class_id FROM students WHERE id = ?', (record['student_id'],)).fetchone()
+            if not is_teacher_authorized(session.get('teacher_id'), class_id=student['class_id'], subject_id=record['subject_id']):
+                conn.close()
+                return jsonify({'error': 'Unauthorized'}), 403
+        conn.close()
+    
     conn = get_db_connection()
     conn.execute('DELETE FROM attendance WHERE id = ?', (id,))
     conn.commit()
@@ -500,20 +599,44 @@ def delete_attendance(id):
 @login_required
 def get_dashboard_stats():
     conn = get_db_connection()
-    total_students = conn.execute('SELECT COUNT(*) FROM students').fetchone()[0]
-    total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
-    total_teachers = conn.execute('SELECT COUNT(*) FROM teachers').fetchone()[0]
-    total_departments = conn.execute('SELECT COUNT(*) FROM departments').fetchone()[0]
-    total_classes = conn.execute('SELECT COUNT(*) FROM classes').fetchone()[0]
-    total_users = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+    role = session.get('role')
     
-    avg_pct = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
-    
-    pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE pass_fail = 'Pass'").fetchone()[0]
-    total_marks_count = conn.execute("SELECT COUNT(*) FROM marks").fetchone()[0]
-    pass_pct = (pass_count / total_marks_count * 100) if total_marks_count > 0 else 0
+    if role == 'Admin':
+        total_students = conn.execute('SELECT COUNT(*) FROM students').fetchone()[0]
+        total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
+        total_teachers = conn.execute('SELECT COUNT(*) FROM teachers').fetchone()[0]
+        total_departments = conn.execute('SELECT COUNT(*) FROM departments').fetchone()[0]
+        total_classes = conn.execute('SELECT COUNT(*) FROM classes').fetchone()[0]
+        total_users = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        avg_pct = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
+        total_marks_count = conn.execute("SELECT COUNT(*) FROM marks").fetchone()[0]
+        pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE pass_fail = 'Pass'").fetchone()[0]
+    else:
+        # Teacher Stats
+        teacher_id = session.get('teacher_id')
+        auth_classes = get_authorized_classes(teacher_id)
+        auth_subjects = get_authorized_subjects(teacher_id)
+        
+        if not auth_classes:
+            conn.close()
+            return jsonify({k: 0 for k in ['totalStudents', 'totalSubjects', 'totalTeachers', 'totalDepartments', 'totalClasses', 'totalUsers', 'averagePercentage', 'passPercentage']})
 
+        # Total Students in assigned classes
+        total_students = conn.execute("SELECT COUNT(*) FROM students WHERE class_id IN ({})".format(','.join(['?']*len(auth_classes))), auth_classes).fetchone()[0]
+        total_subjects = len(auth_subjects)
+        total_teachers = 1 # Just the teacher themselves in their scoped view
+        total_departments = conn.execute("SELECT COUNT(DISTINCT department_id) FROM classes WHERE id IN ({})".format(','.join(['?']*len(auth_classes))), auth_classes).fetchone()[0]
+        total_classes = len(auth_classes)
+        total_users = 1
+        
+        # Performance in assigned subjects
+        avg_pct = conn.execute("SELECT AVG(percentage) FROM marks WHERE subject_id IN ({})".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0] or 0
+        total_marks_count = conn.execute("SELECT COUNT(*) FROM marks WHERE subject_id IN ({})".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0]
+        pass_count = conn.execute("SELECT COUNT(*) FROM marks WHERE subject_id IN ({}) AND pass_fail = 'Pass'".format(','.join(['?']*len(auth_subjects))), auth_subjects).fetchone()[0]
+
+    pass_pct = (pass_count / total_marks_count * 100) if total_marks_count > 0 else 0
     conn.close()
+    
     return jsonify({
         'totalStudents': total_students,
         'totalSubjects': total_subjects,
@@ -531,18 +654,31 @@ def get_dashboard_stats():
 @app.route('/api/performance', methods=['GET'])
 def get_all_performance():
     conn = get_db_connection()
-    students = conn.execute('SELECT id, name, student_id, department, semester FROM students').fetchall()
+    query = 'SELECT id, name, student_id, department, semester, class_id FROM students'
+    params = []
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        auth_classes = get_authorized_classes(teacher_id)
+        if not auth_classes:
+            conn.close()
+            return jsonify([])
+        query += " WHERE class_id IN ({})".format(','.join(['?']*len(auth_classes)))
+        params = auth_classes
+        
+    students = conn.execute(query, params).fetchall()
     
     results = []
     for s in students:
         perf = calculate_student_performance(conn, s['id'])
-        results.append({
-            'student_id': s['student_id'],
-            'name': s['name'],
-            'department': s['department'],
-            'semester': s['semester'],
-            **perf['overall']
-        })
+        if perf:
+            results.append({
+                'student_id': s['student_id'],
+                'name': s['name'],
+                'department': s['department'],
+                'semester': s['semester'],
+                **perf['overall']
+            })
     
     conn.close()
     return jsonify(results)
@@ -557,7 +693,17 @@ def get_student_performance(student_id):
         conn.close()
         return jsonify({'error': 'Student not found'}), 404
         
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        if not is_teacher_authorized(teacher_id, class_id=student['class_id']):
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+
     performance = calculate_student_performance(conn, student_id)
+    if not performance:
+        conn.close()
+        return jsonify({'error': 'No academic data accessible'}), 403
+        
     performance['student'] = dict(student)
     
     conn.close()
@@ -565,8 +711,20 @@ def get_student_performance(student_id):
 
 def calculate_student_performance(conn, student_id):
     # Fetch all subjects for the student's semester to ensure we show missing data
-    student = conn.execute('SELECT semester FROM students WHERE id = ?', (student_id,)).fetchone()
-    subjects = conn.execute('SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?', (student['semester'],)).fetchall()
+    student = conn.execute('SELECT semester, class_id FROM students WHERE id = ?', (student_id,)).fetchone()
+    if not student: return None
+    
+    subjects_query = 'SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?'
+    subjects_params = [student['semester']]
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        auth_subjects = get_authorized_subjects(teacher_id, student['class_id'])
+        if not auth_subjects: return None
+        subjects_query += " AND id IN ({})".format(','.join(['?']*len(auth_subjects)))
+        subjects_params.extend(auth_subjects)
+        
+    subjects = conn.execute(subjects_query, subjects_params).fetchall()
     
     marks = conn.execute('SELECT * FROM marks WHERE student_id = ?', (student_id,)).fetchall()
     attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ?', (student_id,)).fetchall()
@@ -655,8 +813,25 @@ def get_student_results(student_id):
         conn.close()
         return jsonify({'error': 'Student not found'}), 404
         
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        if not is_teacher_authorized(teacher_id, class_id=student['class_id']):
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+
     # Get subjects for the student's semester
-    subjects = conn.execute('SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?', (student['semester'],)).fetchall()
+    subjects_query = 'SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?'
+    subjects_params = [student['semester']]
+    
+    if session.get('role') == 'Teacher':
+        auth_subjects = get_authorized_subjects(session.get('teacher_id'), student['class_id'])
+        if not auth_subjects:
+            conn.close()
+            return jsonify({'error': 'No accessible subjects'}), 403
+        subjects_query += " AND id IN ({})".format(','.join(['?']*len(auth_subjects)))
+        subjects_params.extend(auth_subjects)
+
+    subjects = conn.execute(subjects_query, subjects_params).fetchall()
     
     # Get marks for those subjects
     marks = conn.execute('SELECT * FROM marks WHERE student_id = ?', (student_id,)).fetchall()
@@ -729,32 +904,65 @@ def get_student_results(student_id):
 def get_class_summary():
     conn = get_db_connection()
     try:
-        total_students = conn.execute('SELECT COUNT(*) FROM students').fetchone()[0]
-        total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
+        # Defaults for Teacher scoping
+        student_filter = ""
+        marks_filter = ""
+        params = []
         
-        # Students with at least one mark record
-        students_with_marks = conn.execute('SELECT COUNT(DISTINCT student_id) FROM marks').fetchone()[0]
+        if session.get('role') == 'Teacher':
+            teacher_id = session.get('teacher_id')
+            auth_classes = get_authorized_classes(teacher_id)
+            auth_subjects = get_authorized_subjects(teacher_id)
+            
+            if not auth_classes:
+                conn.close()
+                return jsonify({'total_students': 0, 'total_subjects': 0, 'students_with_marks': 0, 'students_passed': 0, 'students_failed': 0, 'class_average': 0})
+            
+            student_filter = " WHERE class_id IN ({})".format(','.join(['?']*len(auth_classes)))
+            marks_filter = " WHERE subject_id IN ({})".format(','.join(['?']*len(auth_subjects)))
+            params = auth_classes
+            marks_params = auth_subjects
+
+        total_students = conn.execute('SELECT COUNT(*) FROM students' + student_filter, params).fetchone()[0]
         
-        # We define "Students Passed" as those who have marks for all subjects in their semester and none are failed.
-        # For simplicity in this beginner project, we can count students who have at least one mark and no "Fail" records.
-        # Or more accurately: students where all their marks records are 'Pass'.
-        students_passed = conn.execute('''
+        if session.get('role') == 'Teacher':
+            total_subjects = len(auth_subjects)
+        else:
+            total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
+        
+        # Marks records with scoping
+        marks_where = ""
+        if session.get('role') == 'Teacher':
+            marks_where = " WHERE m.subject_id IN ({})".format(','.join(['?']*len(auth_subjects)))
+            m_params = auth_subjects
+        else:
+            m_params = []
+
+        students_with_marks = conn.execute('SELECT COUNT(DISTINCT student_id) FROM marks m' + marks_where, m_params).fetchone()[0]
+        
+        # Scoped average
+        avg_percentage = conn.execute('SELECT AVG(percentage) FROM marks m' + marks_where, m_params).fetchone()[0] or 0
+        
+        # Scoped pass/fail
+        passed_query = '''
             SELECT COUNT(*) FROM (
-                SELECT student_id FROM marks 
+                SELECT student_id FROM marks m
+                {where}
                 GROUP BY student_id 
                 HAVING SUM(CASE WHEN pass_fail = 'Fail' THEN 1 ELSE 0 END) = 0
             )
-        ''').fetchone()[0]
+        '''.format(where=marks_where)
         
-        students_failed = conn.execute('''
+        failed_query = '''
             SELECT COUNT(*) FROM (
-                SELECT student_id FROM marks 
-                WHERE pass_fail = 'Fail'
+                SELECT student_id FROM marks m
+                {where} AND pass_fail = 'Fail'
                 GROUP BY student_id
             )
-        ''').fetchone()[0]
-        
-        avg_percentage = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
+        '''.format(where=marks_where if marks_where else "WHERE 1=1")
+
+        students_passed = conn.execute(passed_query, m_params).fetchone()[0]
+        students_failed = conn.execute(failed_query, m_params).fetchone()[0]
         
         conn.close()
         return jsonify({
@@ -775,15 +983,31 @@ def get_attendance_summary():
     conn = get_db_connection()
     try:
         # Student-wise attendance summary
-        attendance_data = conn.execute('''
+        query = '''
             SELECT s.name, s.student_id, s.semester,
                    AVG(a.attendance_percentage) as avg_attendance,
                    SUM(CASE WHEN a.status = 'ELIGIBLE' THEN 1 ELSE 0 END) as eligible_count,
                    SUM(CASE WHEN a.status = 'SHORTAGE' THEN 1 ELSE 0 END) as shortage_count
             FROM students s
             JOIN attendance a ON s.id = a.student_id
-            GROUP BY s.id
-        ''').fetchall()
+        '''
+        params = []
+        if session.get('role') == 'Teacher':
+            teacher_id = session.get('teacher_id')
+            auth_classes = get_authorized_classes(teacher_id)
+            auth_subjects = get_authorized_subjects(teacher_id)
+            if not auth_classes:
+                conn.close()
+                return jsonify([])
+            query += " WHERE s.class_id IN ({}) AND a.subject_id IN ({})".format(
+                ','.join(['?']*len(auth_classes)),
+                ','.join(['?']*len(auth_subjects))
+            )
+            params.extend(auth_classes)
+            params.extend(auth_subjects)
+
+        query += " GROUP BY s.id"
+        attendance_data = conn.execute(query, params).fetchall()
         
         conn.close()
         return jsonify([dict(ix) for ix in attendance_data])
