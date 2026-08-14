@@ -495,8 +495,8 @@ def calculate_student_performance(conn, student_id):
         else:
             status = "NEEDS IMPROVEMENT"
     elif avg_marks is not None:
-        status = "NEEDS IMPROVEMENT" # Conservative if attendance missing but marks low
-        if avg_marks >= 75: status = "AVERAGE" # Partial data
+        status = "NEEDS IMPROVEMENT"
+        if avg_marks >= 75: status = "AVERAGE"
         
     return {
         'overall': {
@@ -511,5 +511,84 @@ def calculate_student_performance(conn, student_id):
         'subject_wise': subject_wise
     }
 
+# --- Results API ---
+
+@app.route('/api/results/<int:student_id>', methods=['GET'])
+def get_student_results(student_id):
+    conn = get_db_connection()
+    student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+    
+    if student is None:
+        conn.close()
+        return jsonify({'error': 'Student not found'}), 404
+        
+    # Get subjects for the student's semester
+    subjects = conn.execute('SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?', (student['semester'],)).fetchall()
+    
+    # Get marks for those subjects
+    marks = conn.execute('SELECT * FROM marks WHERE student_id = ?', (student_id,)).fetchall()
+    marks_dict = {m['subject_id']: dict(m) for m in marks}
+    
+    subject_wise = []
+    total_marks = 0
+    passed_subjects = 0
+    failed_subjects = 0
+    marks_records_found = 0
+    
+    for sub in subjects:
+        sub_id = sub['id']
+        m = marks_dict.get(sub_id)
+        
+        if m:
+            marks_records_found += 1
+            total_marks += m['total_marks']
+            if m['pass_fail'] == 'Pass':
+                passed_subjects += 1
+            else:
+                failed_subjects += 1
+            
+            subject_wise.append({
+                'subject_code': sub['subject_code'],
+                'subject_name': sub['subject_name'],
+                'internal_marks': m['internal_marks'],
+                'external_marks': m['external_marks'],
+                'total_marks': m['total_marks'],
+                'percentage': m['percentage'],
+                'grade': m['grade'],
+                'pass_fail': m['pass_fail']
+            })
+    
+    max_marks = len(subjects) * 100
+    overall_percentage = round((total_marks / max_marks * 100), 2) if max_marks > 0 else 0
+    
+    # Overall Result logic
+    if marks_records_found == 0:
+        overall_result = "NO RESULT AVAILABLE"
+    elif failed_subjects > 0:
+        overall_result = "FAIL"
+    elif passed_subjects == len(subjects):
+        overall_result = "PASS"
+    else:
+        # Partial marks, but no fails yet
+        overall_result = "INCOMPLETE"
+
+    result_data = {
+        'student': dict(student),
+        'semester': student['semester'],
+        'subject_wise': subject_wise,
+        'stats': {
+            'total_marks': total_marks,
+            'max_marks': max_marks,
+            'overall_percentage': overall_percentage,
+            'passed_subjects': passed_subjects,
+            'failed_subjects': failed_subjects,
+            'overall_result': overall_result
+        }
+    }
+    
+    conn.close()
+    return jsonify(result_data)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
