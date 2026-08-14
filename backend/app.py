@@ -1,15 +1,76 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection
+from functools import wraps
 import os
 
 app = Flask(__name__)
-CORS(app)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-123')
+CORS(app, supports_credentials=True)
+
+# --- Authentication Middleware ---
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- Authentication API ---
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return jsonify({'error': 'Username and password required'}), 400
+        
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    conn.close()
+    
+    if user and check_password_hash(user['password_hash'], password):
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        session['role'] = user['role']
+        
+        return jsonify({
+            'id': user['id'],
+            'username': user['username'],
+            'role': user['role'],
+            'student_id': user['student_id'],
+            'teacher_id': user['teacher_id']
+        })
+        
+    return jsonify({'error': 'Invalid username or password'}), 401
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'message': 'Logged out successfully'})
+
+@app.route('/api/auth/me', methods=['GET'])
+def get_me():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    return jsonify({
+        'id': session.get('user_id'),
+        'username': session.get('username'),
+        'role': session.get('role')
+    })
 
 # --- Students API ---
 
 @app.route('/api/students', methods=['GET'])
+@login_required
 def get_students():
+
     conn = get_db_connection()
     students = conn.execute('SELECT * FROM students').fetchall()
     conn.close()
