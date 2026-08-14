@@ -1431,6 +1431,7 @@ def update_teacher_assignment(id):
             (data['teacher_id'], data['class_id'], data['subject_id'], id)
         )
         conn.commit()
+        log_audit('UPDATE', 'teacher_assignments', id, f"Admin updated teacher assignment")
         conn.close()
         return jsonify({'message': 'Assignment updated successfully'})
     except Exception as e:
