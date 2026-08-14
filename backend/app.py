@@ -589,6 +589,74 @@ def get_student_results(student_id):
     conn.close()
     return jsonify(result_data)
 
+# --- Reports API ---
+
+@app.route('/api/reports/class-summary', methods=['GET'])
+def get_class_summary():
+    conn = get_db_connection()
+    try:
+        total_students = conn.execute('SELECT COUNT(*) FROM students').fetchone()[0]
+        total_subjects = conn.execute('SELECT COUNT(*) FROM subjects').fetchone()[0]
+        
+        # Students with at least one mark record
+        students_with_marks = conn.execute('SELECT COUNT(DISTINCT student_id) FROM marks').fetchone()[0]
+        
+        # We define "Students Passed" as those who have marks for all subjects in their semester and none are failed.
+        # For simplicity in this beginner project, we can count students who have at least one mark and no "Fail" records.
+        # Or more accurately: students where all their marks records are 'Pass'.
+        students_passed = conn.execute('''
+            SELECT COUNT(*) FROM (
+                SELECT student_id FROM marks 
+                GROUP BY student_id 
+                HAVING SUM(CASE WHEN pass_fail = 'Fail' THEN 1 ELSE 0 END) = 0
+            )
+        ''').fetchone()[0]
+        
+        students_failed = conn.execute('''
+            SELECT COUNT(*) FROM (
+                SELECT student_id FROM marks 
+                WHERE pass_fail = 'Fail'
+                GROUP BY student_id
+            )
+        ''').fetchone()[0]
+        
+        avg_percentage = conn.execute('SELECT AVG(percentage) FROM marks').fetchone()[0] or 0
+        
+        conn.close()
+        return jsonify({
+            'total_students': total_students,
+            'total_subjects': total_subjects,
+            'students_with_marks': students_with_marks,
+            'students_passed': students_passed,
+            'students_failed': students_failed,
+            'class_average': round(avg_percentage, 2)
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reports/attendance-summary', methods=['GET'])
+def get_attendance_summary():
+    conn = get_db_connection()
+    try:
+        # Student-wise attendance summary
+        attendance_data = conn.execute('''
+            SELECT s.name, s.student_id, s.semester,
+                   AVG(a.attendance_percentage) as avg_attendance,
+                   SUM(CASE WHEN a.status = 'ELIGIBLE' THEN 1 ELSE 0 END) as eligible_count,
+                   SUM(CASE WHEN a.status = 'SHORTAGE' THEN 1 ELSE 0 END) as shortage_count
+            FROM students s
+            JOIN attendance a ON s.id = a.student_id
+            GROUP BY s.id
+        ''').fetchall()
+        
+        conn.close()
+        return jsonify([dict(ix) for ix in attendance_data])
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 
