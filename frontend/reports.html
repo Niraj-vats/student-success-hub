@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - Student Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        @media print {
+            .sidebar, .top-nav, .report-controls, .print-btn {
+                display: none !important;
+            }
+            .main-content {
+                margin-left: 0 !important;
+                padding: 0 !important;
+            }
+            .report-container {
+                box-shadow: none !important;
+                border: 1px solid #ddd;
+            }
+            body {
+                background: white;
+            }
+        }
+        .report-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .report-section {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+        .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 10px;
+        }
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .info-item label {
+            display: block;
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+        .info-item span {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .print-btn {
+            background: #1e293b;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .print-btn:hover {
+            background: #0f172a;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <h2>SMS Admin</h2>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Dashboard</a></li>
+                    <li><a href="students.html">Students</a></li>
+                    <li><a href="subjects.html">Subjects</a></li>
+                    <li><a href="marks.html">Marks</a></li>
+                    <li><a href="attendance.html">Attendance</a></li>
+                    <li><a href="performance.html">Performance</a></li>
+                    <li><a href="results.html">Results</a></li>
+                    <li><a href="reports.html" class="active">Reports</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <header class="top-nav">
+                <div class="page-title">
+                    <h1>Academic Reports</h1>
+                </div>
+            </header>
+
+            <div class="report-controls no-print">
+                <div class="form-group">
+                    <label>Report Type</label>
+                    <select id="reportType" onchange="window.toggleReportSections()">
+                        <option value="student">Student Performance Report</option>
+                        <option value="class">Class Academic Summary</option>
+                        <option value="attendance">Attendance Summary Report</option>
+                    </select>
+                </div>
+
+                <div id="studentFilter" class="form-group">
+                    <label>Select Student</label>
+                    <select id="studentSelector">
+                        <option value="">-- Choose Student --</option>
+                    </select>
+                </div>
+
+                <div id="semesterFilter" class="form-group" style="display:none">
+                    <label>Semester</label>
+                    <select id="semesterSelector" onchange="window.filterReports()">
+                        <option value="">All Semesters</option>
+                        <option value="1">Semester 1</option>
+                        <option value="2">Semester 2</option>
+                        <option value="3">Semester 3</option>
+                        <option value="4">Semester 4</option>
+                        <option value="5">Semester 5</option>
+                        <option value="6">Semester 6</option>
+                        <option value="7">Semester 7</option>
+                        <option value="8">Semester 8</option>
+                    </select>
+                </div>
+
+                <button class="btn-primary" onclick="window.generateReport()">Generate Report</button>
+                <button class="print-btn" onclick="window.printReport()" id="printBtn" style="display:none">
+                    Print Report
+                </button>
+            </div>
+
+            <!-- Student Performance Report Section -->
+            <div id="studentReportSection" class="report-section">
+                <div class="report-header">
+                    <h2>Student Academic Performance Report</h2>
+                    <p id="reportDate"></p>
+                </div>
+                
+                <div class="report-grid" id="studentBasicInfo">
+                    <!-- Loaded dynamically -->
+                </div>
+
+                <h3>Subject-wise Marks & Attendance</h3>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Subject Code</th>
+                                <th>Subject Name</th>
+                                <th>Marks %</th>
+                                <th>Grade</th>
+                                <th>Result</th>
+                                <th>Attendance %</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentPerformanceTable">
+                            <!-- Loaded dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="report-grid" style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                    <div class="info-item">
+                        <label>Overall Percentage</label>
+                        <span id="overallPct"></span>
+                    </div>
+                    <div class="info-item">
+                        <label>Final Result</label>
+                        <span id="finalResult"></span>
+                    </div>
+                    <div class="info-item">
+                        <label>Average Attendance</label>
+                        <span id="avgAttPct"></span>
+                    </div>
+                    <div class="info-item">
+                        <label>Performance Status</label>
+                        <span id="perfStatus"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Class Summary Report Section -->
+            <div id="classReportSection" class="report-section">
+                <div class="report-header">
+                    <h2>Class Academic Summary Report</h2>
+                </div>
+                <div class="report-grid">
+                    <div class="info-item">
+                        <label>Total Students</label>
+                        <span id="totalStudentsCount"></span>
+                    </div>
+                    <div class="info-item">
+                        <label>Total Subjects</label>
+                        <span id="totalSubjectsCount"></span>
+                    </div>
+                    <div class="info-item">
+                        <label>Students with Marks</label>
+                        <span id="studentsWithMarks"></span>
+                    </div>
+                    <div class="info-item">
+                        <label>Students Passed</label>
+                        <span id="studentsPassed"></span>
+                    </div>
+                    <div class="info-item">
+                        <label>Students Failed</label>
+                        <span id="studentsFailed"></span>
+                    </div>
+                    <div class="info-item">
+                        <label>Class Average Percentage</label>
+                        <span id="classAvgPct"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Summary Report Section -->
+            <div id="attendanceReportSection" class="report-section">
+                <div class="report-header">
+                    <h2>Attendance Summary Report</h2>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Name</th>
+                                <th>Semester</th>
+                                <th>Avg. Attendance</th>
+                                <th>Eligible Subjects</th>
+                                <th>Shortage Subjects</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceSummaryTable">
+                            <!-- Loaded dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="noDataMessage" class="no-data" style="display: block;">
+                Please select a report type and filters to generate a report.
+            </div>
+
+        </div>
+    </div>
+
+    <script src="js/reports.js" type="module"></script>
+</body>
+</html>
