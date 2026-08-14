@@ -395,5 +395,121 @@ def get_dashboard_stats():
         'passPercentage': round(pass_pct, 2)
     })
 
+# --- Academic Performance API ---
+
+@app.route('/api/performance', methods=['GET'])
+def get_all_performance():
+    conn = get_db_connection()
+    students = conn.execute('SELECT id, name, student_id, department, semester FROM students').fetchall()
+    
+    results = []
+    for s in students:
+        perf = calculate_student_performance(conn, s['id'])
+        results.append({
+            'student_id': s['student_id'],
+            'name': s['name'],
+            'department': s['department'],
+            'semester': s['semester'],
+            **perf['overall']
+        })
+    
+    conn.close()
+    return jsonify(results)
+
+@app.route('/api/performance/<int:student_id>', methods=['GET'])
+def get_student_performance(student_id):
+    conn = get_db_connection()
+    student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+    
+    if student is None:
+        conn.close()
+        return jsonify({'error': 'Student not found'}), 404
+        
+    performance = calculate_student_performance(conn, student_id)
+    performance['student'] = dict(student)
+    
+    conn.close()
+    return jsonify(performance)
+
+def calculate_student_performance(conn, student_id):
+    # Fetch all subjects for the student's semester to ensure we show missing data
+    student = conn.execute('SELECT semester FROM students WHERE id = ?', (student_id,)).fetchone()
+    subjects = conn.execute('SELECT id, subject_code, subject_name FROM subjects WHERE semester = ?', (student['semester'],)).fetchall()
+    
+    marks = conn.execute('SELECT * FROM marks WHERE student_id = ?', (student_id,)).fetchall()
+    attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ?', (student_id,)).fetchall()
+    
+    marks_dict = {m['subject_id']: dict(m) for m in marks}
+    attendance_dict = {a['subject_id']: dict(a) for a in attendance}
+    
+    subject_wise = []
+    total_marks_pct = 0
+    marks_count = 0
+    passed_count = 0
+    failed_count = 0
+    
+    total_attendance_pct = 0
+    attendance_count = 0
+    shortage_count = 0
+    
+    for sub in subjects:
+        sub_id = sub['id']
+        m = marks_dict.get(sub_id)
+        a = attendance_dict.get(sub_id)
+        
+        row = {
+            'subject_code': sub['subject_code'],
+            'subject_name': sub['subject_name'],
+            'marks_percentage': m['percentage'] if m else None,
+            'grade': m['grade'] if m else None,
+            'pass_fail': m['pass_fail'] if m else None,
+            'attendance_percentage': a['attendance_percentage'] if a else None,
+            'attendance_status': a['status'] if a else None
+        }
+        subject_wise.append(row)
+        
+        if m:
+            total_marks_pct += m['percentage']
+            marks_count += 1
+            if m['pass_fail'] == 'Pass':
+                passed_count += 1
+            else:
+                failed_count += 1
+                
+        if a:
+            total_attendance_pct += a['attendance_percentage']
+            attendance_count += 1
+            if a['attendance_percentage'] < 75:
+                shortage_count += 1
+                
+    avg_marks = round(total_marks_pct / marks_count, 2) if marks_count > 0 else None
+    avg_attendance = round(total_attendance_pct / attendance_count, 2) if attendance_count > 0 else None
+    
+    # Overall Status Logic
+    status = "NO ACADEMIC DATA"
+    if avg_marks is not None and avg_attendance is not None:
+        if avg_marks >= 75 and avg_attendance >= 75:
+            status = "GOOD"
+        elif avg_marks >= 50 and avg_attendance >= 60:
+            status = "AVERAGE"
+        else:
+            status = "NEEDS IMPROVEMENT"
+    elif avg_marks is not None:
+        status = "NEEDS IMPROVEMENT" # Conservative if attendance missing but marks low
+        if avg_marks >= 75: status = "AVERAGE" # Partial data
+        
+    return {
+        'overall': {
+            'avg_marks': avg_marks,
+            'avg_attendance': avg_attendance,
+            'total_subjects': len(subjects),
+            'passed_subjects': passed_count,
+            'failed_subjects': failed_count,
+            'shortage_count': shortage_count,
+            'status': status
+        },
+        'subject_wise': subject_wise
+    }
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

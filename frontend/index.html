@@ -5,17 +5,13 @@
 
 "Student Academic & Performance Management System".
 
-This is the next controlled development phase:
-
-ATTENDANCE MANAGEMENT.
+This is PHASE 1 of the Academic Performance module.
 
 IMPORTANT:
 
-Do NOT rebuild the project.
+DO NOT rebuild the project.
 
-Do NOT change the technology stack.
-
-Do NOT introduce React, TypeScript, Node.js, or any new framework.
+DO NOT change the existing architecture.
 
 KEEP EXACTLY:
 
@@ -35,7 +31,7 @@ Database:
 
 - SQLite
 
-Communication:
+Data flow:
 
 HTML
 
@@ -53,75 +49,69 @@ HTML
 
 → HTML
 
-Student, Subject, and Marks modules have already been implemented and audited successfully.
+The following modules have already been implemented and READ-ONLY audited successfully:
 
-Do NOT break or unnecessarily refactor them.
+- Dashboard
 
-==================================================
+- Student Management
 
-CURRENT DATABASE
+- Student Details
 
-==================================================
+- Subject Management
 
-An existing `attendance` table already exists.
+- Marks Management
 
-Inspect the CURRENT schema before implementation.
+- Attendance Management
 
-Expected fields include:
-
-- id
-
-- student_id
-
-- subject_id
-
-- total_classes
-
-- attended_classes
-
-- attendance_percentage
-
-- status
-
-Do NOT create another attendance table.
-
-Preserve the existing database structure if it is sufficient.
+Do NOT break or unnecessarily refactor these modules.
 
 ==================================================
 
-PHASE GOAL
+PHASE 1 GOAL
 
 ==================================================
 
-Build a complete Attendance Management module.
+Implement the Academic Performance module using the
 
-Required:
+EXISTING Marks and Attendance data.
 
-1. Attendance list
+Performance must be calculated from existing database records.
 
-2. Add attendance
+DO NOT create duplicate marks or attendance data.
 
-3. Edit attendance
+DO NOT create unnecessary new database tables.
 
-4. Delete attendance
+==================================================
 
-5. Automatic attendance percentage
+DATABASE RELATIONSHIPS
 
-6. Automatic attendance status
+==================================================
 
-7. Student selection
+Use the existing relationships:
 
-8. Subject selection
+students
 
-9. Search/filter
+    ↓
 
-10. Input validation
+marks
 
-11. Duplicate prevention
+    ↓
 
-12. SQLite persistence
+subjects
 
-13. User-friendly error handling
+and:
+
+students
+
+    ↓
+
+attendance
+
+    ↓
+
+subjects
+
+Performance must aggregate data from these existing tables.
 
 ==================================================
 
@@ -129,361 +119,217 @@ BACKEND API
 
 ==================================================
 
-Implement/verify:
+Create/implement:
 
-GET    /api/attendance
+GET /api/performance
 
-GET    /api/attendance/<id>
+It should return student-wise academic performance based on
 
-POST   /api/attendance
+existing Marks and Attendance records.
 
-PUT    /api/attendance/<id>
+Also support:
 
-DELETE /api/attendance/<id>
+GET /api/performance/<student_id>
 
-Use existing:
+for detailed performance of one student.
 
-GET /api/students
+Use SQLite queries and JOINs.
 
-GET /api/subjects
+Do NOT calculate everything manually in the frontend.
 
-to populate student and subject dropdowns.
-
-All attendance CRUD operations must use SQLite.
-
-Return JSON responses.
+The backend should provide the calculated performance data.
 
 ==================================================
 
-ATTENDANCE INPUT
+STUDENT PERFORMANCE DATA
 
 ==================================================
 
-Form fields:
+For each student calculate:
 
-Student
+- Student ID
 
-Subject
+- Student Name
 
-Total Classes
+- Department
 
-Attended Classes
+- Semester
 
-Student and Subject MUST be selected from actual database records.
+- Total Subjects
 
-Do NOT allow arbitrary student IDs or subject IDs.
+- Average Marks
 
-==================================================
+- Passed Subjects
 
-VALIDATION
+- Failed Subjects
 
-==================================================
+- Average Attendance
 
-Implement validation on BOTH frontend and backend.
+- Attendance Shortage Count
 
-Rules:
+- Overall Performance Status
 
-Total Classes:
-
-- Must be a positive integer
-
-- Must be greater than 0
-
-Attended Classes:
-
-- Must be an integer
-
-- Must be >= 0
-
-- Must NOT exceed Total Classes
-
-Reject:
-
-- Total Classes = 0
-
-- Negative values
-
-- Decimal values
-
-- Attended Classes > Total Classes
-
-- Missing student
-
-- Missing subject
-
-- Invalid student ID
-
-- Invalid subject ID
+Use existing marks and attendance records.
 
 ==================================================
 
-CALCULATION
+MARKS CALCULATION
 
 ==================================================
 
-Calculate attendance percentage on the BACKEND.
+Use the existing marks data.
 
-Formula:
+Do NOT create a new marks calculation system.
 
-attendance_percentage =
+Use:
 
-(attended_classes / total_classes) * 100
+percentage
 
-Round to a maximum of 2 decimal places.
+grade
 
-Do NOT trust a percentage supplied by the frontend.
+pass_fail
 
-Frontend may show a live preview, but backend must independently calculate the final value.
+already stored/calculated by the Marks module.
+
+Average Marks:
+
+average of available subject percentages for that student.
+
+Passed Subjects:
+
+count of PASS records.
+
+Failed Subjects:
+
+count of FAIL records.
 
 ==================================================
 
-ATTENDANCE STATUS
+ATTENDANCE CALCULATION
 
 ==================================================
 
-Use this simple rule:
+Use the existing attendance data.
 
-attendance_percentage >= 75
+Average Attendance:
 
-→ "ELIGIBLE"
+average of attendance_percentage for the student.
+
+Attendance Shortage Count:
+
+count of subjects where:
 
 attendance_percentage < 75
 
-→ "SHORTAGE"
+Do not recalculate attendance using raw class counts unless necessary.
 
-Keep the rule simple and easy to explain.
-
-==================================================
-
-DUPLICATE PREVENTION
+Use the existing attendance_percentage values.
 
 ==================================================
 
-A student should have only one attendance record for a particular subject.
+OVERALL PERFORMANCE STATUS
 
-Prevent duplicate:
+==================================================
+
+Create a SIMPLE and explainable classification.
+
+Use this rule:
+
+If average marks >= 75 AND average attendance >= 75:
+
+"GOOD"
+
+Else if average marks >= 50 AND average attendance >= 60:
+
+"AVERAGE"
+
+Else:
+
+"NEEDS IMPROVEMENT"
+
+If the student has no marks data:
+
+"NO ACADEMIC DATA"
+
+Keep this logic simple.
+
+Do not introduce machine learning or AI.
+
+==================================================
+
+STUDENT DETAIL PERFORMANCE
+
+==================================================
+
+For:
+
+GET /api/performance/<student_id>
+
+return:
+
+Student information:
+
+- ID
+
+- Name
+
+- Department
+
+- Semester
+
+Overall:
+
+- Average Marks
+
+- Average Attendance
+
+- Total Subjects
+
+- Passed Subjects
+
+- Failed Subjects
+
+- Attendance Shortage Count
+
+- Overall Status
+
+Subject-wise performance:
+
+For each subject return:
+
+- Subject Code
+
+- Subject Name
+
+- Marks Percentage
+
+- Grade
+
+- Pass/Fail
+
+- Attendance Percentage
+
+- Attendance Status
+
+Combine Marks and Attendance records by:
 
 student_id + subject_id
 
-Use BOTH:
-
-1. Backend duplicate check
-
-2. Database-level UNIQUE constraint if the existing schema allows it
-
-Do not create duplicate attendance records.
-
-Example:
-
-Student A + Subject A → allowed once
-
-Student A + Subject A again → rejected
-
-Student A + Subject B → allowed
-
-Student B + Subject A → allowed
-
 ==================================================
 
-ATTENDANCE LIST
+FRONTEND
 
 ==================================================
 
 Create:
 
-frontend/attendance.html
+frontend/performance.html
 
 and:
 
-frontend/js/attendance.js
+frontend/js/performance.js
 
-Display:
-
-- Student Name
-
-- Student ID
-
-- Subject Name
-
-- Subject Code
-
-- Total Classes
-
-- Attended Classes
-
-- Attendance %
-
-- Status
-
-- Actions
-
-Actions:
-
-- Edit
-
-- Delete
-
-==================================================
-
-SEARCH & FILTER
-
-==================================================
-
-Implement client-side filtering using fetched attendance data.
-
-Search by:
-
-- Student Name
-
-- Student ID
-
-- Subject Name
-
-- Subject Code
-
-Filters:
-
-- Semester
-
-- Status (ELIGIBLE / SHORTAGE)
-
-Search and filters must work together.
-
-Add:
-
-"Clear Filters"
-
-Show:
-
-"No attendance records found"
-
-when there are no matching records.
-
-==================================================
-
-ADD ATTENDANCE
-
-==================================================
-
-Create a modal/form.
-
-Fields:
-
-Student dropdown
-
-Subject dropdown
-
-Total Classes
-
-Attended Classes
-
-When the user enters values, show a live preview:
-
-Attendance %
-
-Status
-
-The preview is only for user feedback.
-
-The backend remains authoritative.
-
-==================================================
-
-EDIT ATTENDANCE
-
-==================================================
-
-Click Edit.
-
-Load the existing record.
-
-Allow changing:
-
-- Student
-
-- Subject
-
-- Total Classes
-
-- Attended Classes
-
-Recalculate:
-
-- Attendance %
-
-- Status
-
-Prevent duplicate student + subject combinations.
-
-Save through:
-
-PUT /api/attendance/<id>
-
-==================================================
-
-DELETE ATTENDANCE
-
-==================================================
-
-Ask for confirmation.
-
-Then:
-
-DELETE /api/attendance/<id>
-
-Refresh the list after successful deletion.
-
-Show a clear error if deletion fails.
-
-==================================================
-
-ERROR HANDLING
-
-==================================================
-
-Handle:
-
-- Missing student
-
-- Missing subject
-
-- Invalid classes
-
-- Attended > total
-
-- Duplicate attendance
-
-- Record not found
-
-- Database error
-
-- API/network failure
-
-Do not expose raw Python/SQLite errors to users.
-
-==================================================
-
-DATABASE INTEGRITY
-
-==================================================
-
-Use existing relationships:
-
-attendance.student_id → students.id
-
-attendance.subject_id → subjects.id
-
-Do not allow attendance records for non-existent students or subjects.
-
-If the existing schema already has foreign keys, preserve them.
-
-==================================================
-
-UI
-
-==================================================
-
-Match the existing Student, Subject, and Marks modules.
+Follow the existing design system.
 
 Reuse:
 
@@ -497,73 +343,149 @@ Reuse:
 
 - Buttons
 
-- Modal patterns
-
 - Existing CSS
 
-Responsive:
+- Existing modal/card patterns where appropriate
 
-- Desktop
-
-- Tablet
-
-- Mobile
-
-Do not introduce a UI framework.
+Do NOT introduce a UI framework.
 
 ==================================================
 
-DASHBOARD
+PERFORMANCE PAGE
 
 ==================================================
 
-Do NOT redesign the dashboard.
+Create an Academic Performance page with:
 
-Do not add advanced attendance analytics yet.
+1. Student selector/search
 
-Performance/analytics will be handled in a later phase.
+2. Overall performance cards:
+
+- Average Marks
+
+- Average Attendance
+
+- Passed Subjects
+
+- Failed Subjects
+
+3. Overall Status badge
+
+4. Subject-wise performance table
+
+Columns:
+
+Subject Code
+
+Subject Name
+
+Marks %
+
+Grade
+
+Pass/Fail
+
+Attendance %
+
+Attendance Status
 
 ==================================================
 
-IMPORTANT SCOPE LIMIT
+STUDENT SELECTION
 
 ==================================================
 
-ONLY implement:
+Load students using the existing:
 
-- Attendance CRUD
+GET /api/students
 
-- Attendance calculation
+When a student is selected:
 
-- Attendance status
+fetch:
 
-- Search
+GET /api/performance/<student_id>
 
-- Filters
+Then render the complete performance.
 
-- Validation
+Do not hardcode students.
 
-- Duplicate prevention
+==================================================
 
-- SQLite persistence
+NO DATA HANDLING
 
-- Error handling
+==================================================
 
-DO NOT implement:
+Handle students with:
 
-- Performance
+- No marks
 
-- Results
+- No attendance
+
+- Marks but no attendance
+
+- Attendance but no marks
+
+Do not crash.
+
+Show meaningful states such as:
+
+"No academic data available"
+
+or:
+
+"Attendance data not available"
+
+where appropriate.
+
+==================================================
+
+ERROR HANDLING
+
+==================================================
+
+Handle:
+
+- Invalid student ID
+
+- Student not found
+
+- No performance data
+
+- API/network failure
+
+- Database errors
+
+Do not expose raw Python/SQLite errors to users.
+
+==================================================
+
+IMPORTANT LIMITS FOR PHASE 1
+
+==================================================
+
+DO NOT implement yet:
+
+- Advanced charts
 
 - Reports
 
+- PDF generation
+
+- Excel export
+
 - Authentication
 
-- Advanced analytics
+- AI prediction
+
+- Machine learning
+
+- Complex analytics
 
 - New frameworks
 
-- New unnecessary database tables
+- New database tables
+
+Those will be considered later.
 
 ==================================================
 
@@ -571,23 +493,25 @@ PRESERVE EXISTING MODULES
 
 ==================================================
 
-Do not break:
+Do NOT break:
 
 - Dashboard
 
 - Student CRUD
 
-- Student Search
-
 - Student Details
 
 - Subject CRUD
 
-- Subject Search
-
 - Marks CRUD
 
 - Marks calculations
+
+- Attendance CRUD
+
+- Attendance calculations
+
+Do not change their existing business logic unless absolutely required for integration.
 
 ==================================================
 
@@ -595,27 +519,33 @@ AFTER IMPLEMENTATION
 
 ==================================================
 
-Provide a concise summary of:
+Provide a concise implementation summary containing:
 
-- Files created
+1. Files created
 
-- Files modified
+2. Files modified
 
-- Flask endpoints
+3. API endpoints
 
-- Attendance calculations
+4. SQL/JOIN logic
 
-- Validation
+5. Performance calculations
 
-- Duplicate prevention
+6. Overall status logic
 
-- Any limitations
+7. Student-wise performance behavior
 
-Do NOT claim something is working merely because code was created.
+8. Any limitations
 
-We will perform a separate READ-ONLY audit after implementation.
+IMPORTANT:
 
-Do not make changes outside this scope. -->
+Do NOT perform a self-repair after implementation.
+
+Do NOT click "Fix build".
+
+Do not modify anything outside this scope.
+
+After implementation we will perform a separate READ-ONLY audit. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
