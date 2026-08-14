@@ -444,68 +444,78 @@ def delete_marks(id):
 @app.route('/api/attendance', methods=['GET'])
 def get_attendance():
     conn = get_db_connection()
-    attendance = conn.execute('''
+    query = '''
         SELECT a.*, s.name as student_name, s.student_id as student_identifier, 
                sub.subject_name, sub.subject_code, sub.semester
         FROM attendance a
         JOIN students s ON a.student_id = s.id
         JOIN subjects sub ON a.subject_id = sub.id
-    ''').fetchall()
+    '''
+    params = []
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        authorized_classes = get_authorized_classes(teacher_id)
+        authorized_subjects = get_authorized_subjects(teacher_id)
+        
+        if not authorized_classes or not authorized_subjects:
+            conn.close()
+            return jsonify([])
+            
+        query += " WHERE s.class_id IN ({}) AND a.subject_id IN ({})".format(
+            ','.join(['?'] * len(authorized_classes)),
+            ','.join(['?'] * len(authorized_subjects))
+        )
+        params.extend(authorized_classes)
+        params.extend(authorized_subjects)
+
+    attendance = conn.execute(query, params).fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in attendance])
-
-@login_required
-@app.route('/api/attendance/<int:id>', methods=['GET'])
-def get_attendance_by_id(id):
-    conn = get_db_connection()
-    record = conn.execute('SELECT * FROM attendance WHERE id = ?', (id,)).fetchone()
-    conn.close()
-    if record is None:
-        return jsonify({'error': 'Attendance record not found'}), 404
-    return jsonify(dict(record))
 
 @login_required
 @app.route('/api/attendance', methods=['POST'])
 def add_attendance():
     data = request.json
+    student_id = data.get('student_id')
+    subject_id = data.get('subject_id')
+    
+    if session.get('role') == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        conn = get_db_connection()
+        student = conn.execute('SELECT class_id FROM students WHERE id = ?', (student_id,)).fetchone()
+        if not student or not is_teacher_authorized(teacher_id, class_id=student['class_id'], subject_id=subject_id):
+            conn.close()
+            return jsonify({'error': 'Unauthorized: You are not assigned to this class and subject.'}), 403
+        conn.close()
+
     try:
         total_classes = int(data.get('total_classes', 0))
         attended_classes = int(data.get('attended_classes', 0))
-        student_id = data.get('student_id')
-        subject_id = data.get('subject_id')
-
-        if not student_id or not subject_id:
-            return jsonify({'error': 'Student and Subject are required.'}), 400
 
         if total_classes <= 0:
             return jsonify({'error': 'Total classes must be greater than 0.'}), 400
-        if attended_classes < 0:
-            return jsonify({'error': 'Attended classes cannot be negative.'}), 400
-        if attended_classes > total_classes:
-            return jsonify({'error': 'Attended classes cannot exceed total classes.'}), 400
+        if attended_classes < 0 or attended_classes > total_classes:
+            return jsonify({'error': 'Invalid attendance counts.'}), 400
 
-        # Calculation
         percentage = round((attended_classes / total_classes) * 100, 2)
         status = 'ELIGIBLE' if percentage >= 75 else 'SHORTAGE'
 
         conn = get_db_connection()
-        # Check duplicate
         exists = conn.execute('SELECT 1 FROM attendance WHERE student_id = ? AND subject_id = ?', 
                              (student_id, subject_id)).fetchone()
         if exists:
             conn.close()
-            return jsonify({'error': 'Attendance record for this student and subject already exists.'}), 400
+            return jsonify({'error': 'Attendance record already exists.'}), 400
 
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO attendance (student_id, subject_id, total_classes, attended_classes, attendance_percentage, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (student_id, subject_id, total_classes, attended_classes, percentage, status))
+            INSERT INTO attendance (student_id, subject_id, total_classes, attended_classes, attendance_percentage, status, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (student_id, subject_id, total_classes, attended_classes, percentage, status, session.get('user_id')))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Attendance added successfully'}), 201
-    except ValueError:
-        return jsonify({'error': 'Classes must be integer values.'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -513,51 +523,50 @@ def add_attendance():
 @app.route('/api/attendance/<int:id>', methods=['PUT'])
 def update_attendance(id):
     data = request.json
+    if session.get('role') == 'Teacher':
+        conn = get_db_connection()
+        record = conn.execute('SELECT student_id, subject_id FROM attendance WHERE id = ?', (id,)).fetchone()
+        if not record:
+            conn.close()
+            return jsonify({'error': 'Record not found'}), 404
+        
+        student = conn.execute('SELECT class_id FROM students WHERE id = ?', (record['student_id'],)).fetchone()
+        if not is_teacher_authorized(session.get('teacher_id'), class_id=student['class_id'], subject_id=record['subject_id']):
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+        conn.close()
+
     try:
         total_classes = int(data.get('total_classes', 0))
         attended_classes = int(data.get('attended_classes', 0))
-        student_id = data.get('student_id')
-        subject_id = data.get('subject_id')
-
-        if not student_id or not subject_id:
-            return jsonify({'error': 'Student and Subject are required.'}), 400
-
-        if total_classes <= 0:
-            return jsonify({'error': 'Total classes must be greater than 0.'}), 400
-        if attended_classes < 0:
-            return jsonify({'error': 'Attended classes cannot be negative.'}), 400
-        if attended_classes > total_classes:
-            return jsonify({'error': 'Attended classes cannot exceed total classes.'}), 400
-
-        # Calculation
         percentage = round((attended_classes / total_classes) * 100, 2)
         status = 'ELIGIBLE' if percentage >= 75 else 'SHORTAGE'
 
         conn = get_db_connection()
-        # Check duplicate (excluding current ID)
-        exists = conn.execute('SELECT 1 FROM attendance WHERE student_id = ? AND subject_id = ? AND id != ?', 
-                             (student_id, subject_id, id)).fetchone()
-        if exists:
-            conn.close()
-            return jsonify({'error': 'Attendance record for this student and subject already exists.'}), 400
-
         conn.execute('''
             UPDATE attendance 
-            SET student_id=?, subject_id=?, total_classes=?, attended_classes=?, 
-                attendance_percentage=?, status=?
+            SET total_classes=?, attended_classes=?, attendance_percentage=?, status=?, updated_by=?
             WHERE id=?
-        ''', (student_id, subject_id, total_classes, attended_classes, percentage, status, id))
+        ''', (total_classes, attended_classes, percentage, status, session.get('user_id'), id))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Attendance updated successfully'})
-    except ValueError:
-        return jsonify({'error': 'Classes must be integer values.'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
 @login_required
 @app.route('/api/attendance/<int:id>', methods=['DELETE'])
 def delete_attendance(id):
+    if session.get('role') == 'Teacher':
+        conn = get_db_connection()
+        record = conn.execute('SELECT student_id, subject_id FROM attendance WHERE id = ?', (id,)).fetchone()
+        if record:
+            student = conn.execute('SELECT class_id FROM students WHERE id = ?', (record['student_id'],)).fetchone()
+            if not is_teacher_authorized(session.get('teacher_id'), class_id=student['class_id'], subject_id=record['subject_id']):
+                conn.close()
+                return jsonify({'error': 'Unauthorized'}), 403
+        conn.close()
+    
     conn = get_db_connection()
     conn.execute('DELETE FROM attendance WHERE id = ?', (id,))
     conn.commit()
