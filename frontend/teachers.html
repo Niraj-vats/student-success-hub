@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachers - Student Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/dist/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>Teacher Management</h1>
+                </div>
+                <div id="user-profile-container"></div>
+            </header>
+            <div class="content-body">
+                <div class="action-bar">
+                    <button id="add-teacher-btn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Teacher
+                    </button>
+                </div>
+                <div class="card table-card">
+                    <table id="teacher-table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Department</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teacher-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="teacher-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">Add Teacher</h2>
+            <form id="teacher-form">
+                <input type="hidden" id="teacher-id">
+                <div class="form-group">
+                    <label for="teacher-code">Teacher Code</label>
+                    <input type="text" id="teacher-code" required placeholder="e.g., T1001">
+                </div>
+                <div class="form-group">
+                    <label for="teacher-name">Full Name</label>
+                    <input type="text" id="teacher-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="teacher-email">Email</label>
+                    <input type="email" id="teacher-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="teacher-dept">Department</label>
+                    <input type="text" id="teacher-dept" required placeholder="e.g., CSE">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="close-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Teacher</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { checkAuth } from './js/auth-check.js';
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            const { initTeachers } = await import('./js/teachers.js');
+            initTeachers();
+        });
+    </script>
+</body>
+</html>
