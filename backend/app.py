@@ -78,6 +78,54 @@ def teacher_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def student_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        role = session.get('role')
+        # Admin and Teacher can access, Student can only access if it's their own data (checked inside route)
+        if role not in ['Admin', 'Teacher', 'Student']:
+            return jsonify({'error': 'Forbidden'}), 403
+            
+        conn = get_db_connection()
+        user = conn.execute('SELECT is_active FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        conn.close()
+        
+        if not user or not user['is_active']:
+            session.clear()
+            return jsonify({'error': 'Account is inactive'}), 403
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- Audit Logging Helper ---
+
+def log_audit(action, table_name, record_id, description):
+    if 'user_id' not in session:
+        return
+        
+    conn = get_db_connection()
+    try:
+        conn.execute('''
+            INSERT INTO audit_logs (user_id, username, role, action, table_name, record_id, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            session.get('user_id'),
+            session.get('username'),
+            session.get('role'),
+            action,
+            table_name,
+            record_id,
+            description
+        ))
+        conn.commit()
+    except Exception as e:
+        print(f"Audit logging failed: {e}")
+    finally:
+        conn.close()
+
 # --- Authentication API ---
 
 @app.route('/api/auth/login', methods=['POST'])
