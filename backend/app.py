@@ -509,6 +509,9 @@ def add_marks():
 def update_marks(id):
     data = request.json
     # Authorization check
+    if session.get('role') == 'Student':
+        return jsonify({'error': 'Forbidden: Students cannot update marks'}), 403
+
     if session.get('role') == 'Teacher':
         conn = get_db_connection()
         mark = conn.execute('SELECT student_id, subject_id FROM marks WHERE id = ?', (id,)).fetchone()
@@ -525,7 +528,10 @@ def update_marks(id):
     try:
         internal = float(data.get('internal_marks', 0))
         external = float(data.get('external_marks', 0))
-        # ... validation logic ...
+
+        if internal < 0 or internal > 30 or external < 0 or external > 70:
+            return jsonify({'error': 'Invalid mark values. Internal: 0-30, External: 0-70.'}), 400
+
         total = internal + external
         percentage = total
         grade = 'F'
@@ -543,8 +549,10 @@ def update_marks(id):
             WHERE id=?
         ''', (internal, external, total, percentage, grade, pass_fail, session.get('user_id'), id))
         conn.commit()
+        log_audit('UPDATE', 'marks', id, f"User updated marks record {id} (internal {internal}, external {external})")
         conn.close()
         return jsonify({'message': 'Marks updated successfully'})
+
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
