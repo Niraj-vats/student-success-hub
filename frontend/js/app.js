@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             for (const [id, text] of Object.entries(statsTitles)) {
                 const el = document.getElementById(id);
                 if (el) el.textContent = text;
+            }
         } else if (user.role === 'Student') {
             sessionStorage.setItem('student_id', user.student_id);
             // Dynamic relabeling for Student Dashboard
@@ -39,28 +40,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('pass-percentage-title').textContent = 'My Results';
             document.getElementById('pass-percentage').parentElement.onclick = () => window.location.href = 'results.html';
             document.getElementById('pass-percentage').parentElement.style.cursor = 'pointer';
-        } else {
-            sessionStorage.setItem('student_id', '');
-        }
         } else if (user.role === 'Teacher') {
+            sessionStorage.setItem('student_id', '');
             // Adjust labels for Teacher scoping
             const statsTitles = {
                 'total-students-title': 'Scoped Students',
                 'total-subjects-title': 'Assigned Subjects',
                 'avg-percentage-title': 'Avg. Class Performance',
                 'pass-percentage-title': 'Class Pass %'
-            };
-            for (const [id, text] of Object.entries(statsTitles)) {
-                const el = document.getElementById(id);
-                if (el) el.textContent = text;
-            }
-        } else if (user.role === 'Student') {
-            // Adjust labels for Student ownership
-            const statsTitles = {
-                'total-students-title': 'Student Profile',
-                'total-subjects-title': 'My Subjects',
-                'avg-percentage-title': 'My Avg. Percentage',
-                'pass-percentage-title': 'My Pass %'
             };
             for (const [id, text] of Object.entries(statsTitles)) {
                 const el = document.getElementById(id);
