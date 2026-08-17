@@ -672,6 +672,9 @@ def add_attendance():
 @login_required
 def update_attendance(id):
     data = request.json
+    if session.get('role') == 'Student':
+        return jsonify({'error': 'Forbidden: Students cannot update attendance'}), 403
+
     if session.get('role') == 'Teacher':
         conn = get_db_connection()
         record = conn.execute('SELECT student_id, subject_id FROM attendance WHERE id = ?', (id,)).fetchone()
@@ -688,6 +691,12 @@ def update_attendance(id):
     try:
         total_classes = int(data.get('total_classes', 0))
         attended_classes = int(data.get('attended_classes', 0))
+
+        if total_classes <= 0:
+            return jsonify({'error': 'Total classes must be greater than 0.'}), 400
+        if attended_classes < 0 or attended_classes > total_classes:
+            return jsonify({'error': 'Invalid attendance counts.'}), 400
+
         percentage = round((attended_classes / total_classes) * 100, 2)
         status = 'ELIGIBLE' if percentage >= 75 else 'SHORTAGE'
 
@@ -698,8 +707,10 @@ def update_attendance(id):
             WHERE id=?
         ''', (total_classes, attended_classes, percentage, status, session.get('user_id'), id))
         conn.commit()
+        log_audit('UPDATE', 'attendance', id, f"User updated attendance record {id} ({attended_classes}/{total_classes})")
         conn.close()
         return jsonify({'message': 'Attendance updated successfully'})
+
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
