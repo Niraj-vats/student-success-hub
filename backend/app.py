@@ -158,8 +158,8 @@ def login():
             'id': user['id'],
             'username': user['username'],
             'role': user['role'],
-            'student_id': user.get('student_id'),
-            'teacher_id': user.get('teacher_id')
+            'student_id': user['student_id'],
+            'teacher_id': user['teacher_id']
         })
     
     # Log failed login attempt
