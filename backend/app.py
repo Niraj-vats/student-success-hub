@@ -8,13 +8,14 @@ import os
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY')
-if not app.secret_key and os.environ.get('NODE_ENV') != 'development':
-    # In production-like environments, we MUST have a secret key
-    # For this environment, we can fallback to a dummy if explicitly allowed, 
-    # but the requirement was to remove the hardcoded one.
-    # If it's missing, Flask might still work in some dev contexts, but we'll enforce it.
-    app.secret_key = 'dev-fallback-for-local-only' 
-    print("WARNING: FLASK_SECRET_KEY not set. Using local fallback.")
+if not app.secret_key:
+    if os.environ.get('NODE_ENV') == 'development':
+        app.secret_key = 'dev-fallback-for-local-only'
+        print("WARNING: FLASK_SECRET_KEY not set. Using local development fallback.")
+    else:
+        print("CRITICAL ERROR: FLASK_SECRET_KEY must be set in production.")
+        # This will cause Flask to fail on session usage, but we print a clear error
+        app.secret_key = None
 CORS(app, supports_credentials=True)
 
 # --- Authentication Middleware ---
@@ -551,9 +552,29 @@ def update_marks(id):
 @login_required
 @app.route('/api/marks/<int:id>', methods=['DELETE'])
 def delete_marks(id):
+    role = session.get('role')
+    user_id = session.get('user_id')
+    
+    if role == 'Student':
+        return jsonify({'error': 'Forbidden: Students cannot delete marks'}), 403
+        
     conn = get_db_connection()
+    mark = conn.execute('SELECT m.student_id, m.subject_id, s.name as student_name, sub.subject_name FROM marks m JOIN students s ON m.student_id = s.id JOIN subjects sub ON m.subject_id = sub.id WHERE m.id = ?', (id,)).fetchone()
+    
+    if not mark:
+        conn.close()
+        return jsonify({'error': 'Record not found'}), 404
+        
+    if role == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        student = conn.execute('SELECT class_id FROM students WHERE id = ?', (mark['student_id'],)).fetchone()
+        if not is_teacher_authorized(teacher_id, class_id=student['class_id'], subject_id=mark['subject_id']):
+            conn.close()
+            return jsonify({'error': 'Unauthorized: You are not assigned to this class and subject.'}), 403
+
     conn.execute('DELETE FROM marks WHERE id = ?', (id,))
     conn.commit()
+    log_audit('DELETE', 'marks', id, f"User deleted marks for student {mark['student_name']} in subject {mark['subject_name']}")
     conn.close()
     return jsonify({'message': 'Marks deleted successfully'})
 
@@ -685,19 +706,28 @@ def update_attendance(id):
 @login_required
 @app.route('/api/attendance/<int:id>', methods=['DELETE'])
 def delete_attendance(id):
-    if session.get('role') == 'Teacher':
-        conn = get_db_connection()
-        record = conn.execute('SELECT student_id, subject_id FROM attendance WHERE id = ?', (id,)).fetchone()
-        if record:
-            student = conn.execute('SELECT class_id FROM students WHERE id = ?', (record['student_id'],)).fetchone()
-            if not is_teacher_authorized(session.get('teacher_id'), class_id=student['class_id'], subject_id=record['subject_id']):
-                conn.close()
-                return jsonify({'error': 'Unauthorized'}), 403
-        conn.close()
+    role = session.get('role')
     
+    if role == 'Student':
+        return jsonify({'error': 'Forbidden: Students cannot delete attendance records'}), 403
+        
     conn = get_db_connection()
+    record = conn.execute('SELECT a.student_id, a.subject_id, s.name as student_name, sub.subject_name FROM attendance a JOIN students s ON a.student_id = s.id JOIN subjects sub ON a.subject_id = sub.id WHERE a.id = ?', (id,)).fetchone()
+    
+    if not record:
+        conn.close()
+        return jsonify({'error': 'Record not found'}), 404
+        
+    if role == 'Teacher':
+        teacher_id = session.get('teacher_id')
+        student = conn.execute('SELECT class_id FROM students WHERE id = ?', (record['student_id'],)).fetchone()
+        if not is_teacher_authorized(teacher_id, class_id=student['class_id'], subject_id=record['subject_id']):
+            conn.close()
+            return jsonify({'error': 'Unauthorized: You are not assigned to this class and subject.'}), 403
+    
     conn.execute('DELETE FROM attendance WHERE id = ?', (id,))
     conn.commit()
+    log_audit('DELETE', 'attendance', id, f"User deleted attendance for student {record['student_name']} in subject {record['subject_name']}")
     conn.close()
     return jsonify({'message': 'Attendance record deleted successfully'})
 
@@ -952,7 +982,7 @@ def get_student_results(student_id):
         if not is_teacher_authorized(teacher_id, class_id=student['class_id']):
             conn.close()
             return jsonify({'error': 'Unauthorized'}), 403
-    elif session.get('role') == 'Student':
+    elif role == 'Student':
         if student_id != session.get('student_id'):
             conn.close()
             return jsonify({'error': 'Forbidden: You can only view your own results'}), 403
