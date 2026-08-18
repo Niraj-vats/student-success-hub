@@ -989,6 +989,7 @@ def calculate_student_performance(conn, student_id):
 @app.route('/api/results/<int:student_id>', methods=['GET'])
 @login_required
 def get_student_results(student_id):
+    role = session.get('role')
     conn = get_db_connection()
     student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
     
@@ -996,7 +997,7 @@ def get_student_results(student_id):
         conn.close()
         return jsonify({'error': 'Student not found'}), 404
         
-    if session.get('role') == 'Teacher':
+    if role == 'Teacher':
         teacher_id = session.get('teacher_id')
         if not is_teacher_authorized(teacher_id, class_id=student['class_id']):
             conn.close()
